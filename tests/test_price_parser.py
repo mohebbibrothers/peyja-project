@@ -1,6 +1,33 @@
 """تست‌های پارسر قیمت فارسی — دام‌های واقعی بازار ایران."""
 
+from peyja.extract.pipeline import ExtractionPipeline
 from peyja.extract.price_parser import parse_price_fa
+
+
+def test_extract_signals_fa_price_forms():
+    r = ExtractionPipeline.extract_signals_fa("کرم ضد آفتاب SPF50 🌞 قیمت ۴/۸۰ تومان")
+    assert r["price_toman"] == 4_800_000
+    assert r["category"] == "skincare"
+    assert r["route"] == "store"
+
+
+def test_extract_signals_fa_on_request():
+    r = ExtractionPipeline.extract_signals_fa("رژلب مات 💋 قیمت توافقی")
+    assert r["stock_state"] == "on_request"
+    assert r["price_toman"] is None
+
+
+def test_extract_signals_fa_discount():
+    r = ExtractionPipeline.extract_signals_fa("تخفیف ویژه عطر از ۹۰۰ به ۷۵۰")
+    assert r["price_toman"] == 750_000
+    assert r["old_price_toman"] == 900_000
+    assert r["category"] == "perfume"
+
+
+def test_extract_signals_fa_cosmetics_categories():
+    assert ExtractionPipeline.extract_signals_fa("فوندیشن مات")["category"] == "makeup"
+    assert ExtractionPipeline.extract_signals_fa("شامپو ضد ریزش")["category"] == "haircare"
+    assert ExtractionPipeline.extract_signals_fa("سرم ویتامین C")["category"] == "skincare"
 
 
 def test_million_slash_two_digits():

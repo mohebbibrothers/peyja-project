@@ -171,6 +171,26 @@ def _seller_report(username: str, crawl: dict, extract: dict, catalog: list, ela
     return "\n".join(lines)
 
 
+@app.command("extract-text")
+def extract_text(
+    input: Path = typer.Argument(..., help='فایل JSON کپشن‌ها: [{"id":..., "caption":...}]'),
+    out: Path = typer.Option(Path("out/predictions.json"), help="خروجی پیش‌بینی‌ها"),
+) -> None:
+    """استخراج آفلاین از کپشن‌های متنی — «عدد سرنوشت» بدون نیاز به Data API."""
+    import json
+
+    from peyja.extract.pipeline import ExtractionPipeline
+
+    samples = json.loads(input.read_text(encoding="utf-8"))
+    preds = []
+    for s in samples:
+        r = ExtractionPipeline.extract_signals_fa(s.get("caption") or "")
+        preds.append({"id": s["id"], **r})
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(preds, ensure_ascii=False, indent=2), encoding="utf-8")
+    typer.echo(f"✅ {len(preds)} نمونه پردازش شد → {out}")
+
+
 @app.command()
 def doctor() -> None:
     """بررسی سلامت اتصال‌ها — API رسمی، توکن دیتا، وب‌هوک، دیتابیس."""

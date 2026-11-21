@@ -224,6 +224,27 @@ class ExtractionPipeline:
             )
         return stats
 
+    # ── کمکی‌ها ──────────────────────────────────────────────────────────────
+
+    @staticmethod
+    def extract_signals_fa(caption_text: str) -> dict[str, Any]:
+        """استخراج خالص متنی (بدون DB/VLM/API) — موتور gold-100 آفلاین."""
+        signals = analyze_caption(caption_text)
+        price, method, conf = _merge_price(signals.prices.current, None, signals.prices.on_request)
+        return {
+            "price_toman": price,
+            "old_price_toman": signals.prices.old.value_toman if signals.prices.old else None,
+            "category": _guess_category(caption_text + " " + " ".join(signals.hashtags)),
+            "colors": signals.colors,
+            "sizes": signals.sizes,
+            "stock_state": "on_request"
+            if signals.prices.on_request
+            else ("in_stock" if price else "unknown"),
+            "confidence": conf,
+            "method": method,
+            "route": route_by_confidence(conf, get_settings().extract_review_floor),
+        }
+
     # ── استخراج ساخت‌یافته‌ی VLM با retry هوشمند ───────────────────────────────
     async def _vlm_extract_safe(
         self, item: RawItem, caption_text: str
