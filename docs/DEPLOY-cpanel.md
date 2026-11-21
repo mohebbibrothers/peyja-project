@@ -55,6 +55,12 @@ python -m apps.cli.main doctor
 | ۵۰۲/ImportError | اشتباه در passenger_wsgi.py | `git checkout -- passenger_wsgi.py` سپس Restart |
 | `No module named ...` | بسته خارج از virtualenv نصب شده | حتماً بعد از activate نصب کنید |
 | `no such table` | جداول ساخته نشده | `python -m apps.cli.main doctor` یک بار اجرا شود |
+| `ERR_CONNECTION_CLOSED` / باز نشدن دامنه | معمولاً **DNS دامنه ثبت نشده (NXDOMAIN)** یا SSL | اول `curl -sk -H "Host: DOMAIN" https://127.0.0.1/health` روی خود سرور؛ اگر پاسخ داد = فقط DNS/SSL دامنه خراب است → تیکت میزبان یا دامنه‌ی اختصاصی + AutoSSL |
+
+## تشخیص DNS از بیرون (تجربه‌ی واقعی ۲۰۲۶-۱۱)
+دامنه‌ی موقت `kaveh185.n-cpanel.xyz` هنگام استقرار، **NXDOMAIN** بود (تأیید با Google/Cloudflare DoH).
+آزمون محلی روی سرور (`curl -k -H "Host: ..." https://127.0.0.1/health`) سلامت اپ را از خرابی DNS جدا می‌کند.
+برای وب‌هوک BoxAPI حتماً HTTPS معتبر لازم است ← دامنه‌ی اختصاصی + AutoSSL مسیر پایدار است.
 
 ## نکات معماری
 - Passenger فقط WSGI می‌فهمد ← `a2wsgi.ASGIMiddleware` در `passenger_wsgi.py` پل ASGI است.
