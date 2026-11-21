@@ -294,28 +294,62 @@ async def _doctor() -> None:
         except Exception as e:
             checks.append((f"وب محلی · {label}", False, f"عدم اتصال: {str(e)[:60]}"))
 
+    # ── DNS دامنه: آیا نام عمومی به IP همین سرور اشاره می‌کند؟ ──
+    if web_host and server_ip:
+        try:
+            addrs = sorted({str(item[4][0]) for item in _socket.getaddrinfo(web_host, None)})
+            ok = server_ip in addrs
+            checks.append(
+                (
+                    f"DNS · {web_host}",
+                    ok,
+                    f"→ {', '.join(addrs)} ✓"
+                    if ok
+                    else f"→ {', '.join(addrs) or 'بدون رکورد'} — باید {server_ip} باشد (Zone Editor → A record)",
+                )
+            )
+        except OSError:
+            checks.append(
+                (
+                    f"DNS · {web_host}",
+                    False,
+                    f"NXDOMAIN — در Zone Editor رکورد A برای {web_host} ← {server_ip} ثبت کنید",
+                )
+            )
+
     # ── انحراف ساعت سرور: برای تأیید HMAC وب‌هوک (پنجره‌ی زمانی) حیاتی است ──
     import time as _time
     from email.utils import parsedate_to_datetime as _pdate
 
     try:
-        async with _httpx.AsyncClient(timeout=8, follow_redirects=True) as c:
-            r = await c.head("https://boxapi.ir")
-        remote_ts = _pdate(r.headers["Date"]).timestamp()
-        skew = _time.time() - remote_ts
-        if abs(skew) <= 300:
-            checks.append(("ساعت سرور", True, f"انحراف {skew:.0f} ثانیه — در محدوده‌ی امن"))
+        remote_ts: float | None = None
+        for url in ("https://boxapi.ir", "https://www.google.com", "http://www.google.com"):
+            try:
+                async with _httpx.AsyncClient(timeout=12, follow_redirects=True) as c:
+                    r = await c.get(url)
+                date_hdr = r.headers.get("Date", "")
+                if date_hdr:
+                    remote_ts = _pdate(date_hdr).timestamp()
+                    break
+            except Exception:
+                continue
+        if remote_ts is None:
+            checks.append(("ساعت سرور", False, "عدم امکان سنجش (هیچ سرور زمانی پاسخ نداد)"))
         else:
-            checks.append(
-                (
-                    "ساعت سرور",
-                    False,
-                    f"انحراف {skew / 86400:+.1f} روز! در .env مقدار WEBHOOK_TOLERANCE_SECONDS "
-                    f"را ≥ {int(abs(skew)) + 300} بگذارید (راهنما: docs/DEPLOY-cpanel.md)",
+            skew = _time.time() - remote_ts
+            if abs(skew) <= 300:
+                checks.append(("ساعت سرور", True, f"انحراف {skew:.0f} ثانیه — در محدوده‌ی امن"))
+            else:
+                checks.append(
+                    (
+                        "ساعت سرور",
+                        False,
+                        f"انحراف {skew / 86400:+.1f} روز! در .env مقدار WEBHOOK_TOLERANCE_SECONDS "
+                        f"را ≥ {int(abs(skew)) + 300} بگذارید (راهنما: docs/DEPLOY-cpanel.md)",
+                    )
                 )
-            )
     except Exception as e:
-        checks.append(("ساعت سرور", False, f"عدم امکان سنجش: {str(e)[:60]}"))
+        checks.append(("ساعت سرور", False, f"عدم امکان سنجش: {str(e) or type(e).__name__}"))
 
     width = max(len(c[0]) for c in checks)
     for name, ok, detail in checks:

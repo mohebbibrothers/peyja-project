@@ -66,20 +66,28 @@ python -m apps.cli.main doctor
 اگر آزمون محلی، صفحه‌ی ۴۰۴ استاندارد cPanel برگرداند (نه JSON):
 - ⚠️ **اول منفی کاذب را حذف کنید:** نام‌های مجازی cPanel روی IP عمومی سرور bind می‌شوند؛
   آزمون با `127.0.0.1` ممکن است به vhost پیش‌فرض بخورد و ۴۰۴ کاذب بدهد.
-  آزمون معتبر از **بیرون** (بدون نیاز به DNS — روی سیستم خودتان):
-  `curl -k --resolve kaveh185.n-cpanel.xyz:443:85.158.145.202 https://kaveh185.n-cpanel.xyz/health`
+  آزمون معتبر از **بیرون** (بدون نیاز به DNS — روی سیستم خودتان؛ IP را از Shared IP بگیرید):
+  `curl -k --resolve kaveh185.n-cpanel.xyz:80:85.198.13.88 http://kaveh185.n-cpanel.xyz/health`
 - اگر آزمون بیرونی هم ۴۰۴ داد: وب‌سرور به اپ **نمی‌رساند** — مراحل رفع:
   Setup Python App → Edit اپ → فیلد **Application URL** = دامنه (+ مسیر `/` به‌صورت صریح) → Save → Restart.
   سپس `~/public_html/.htaccess` را ببینید: باید حاوی `PassengerAppRoot`/`PassengerBaseURI` باشد؛
   اگر نبود، خودتان بنویسید (الگو در همین سند) و دوباره Restart کنید.
 
 ## رفع DNS بدون تیکت (بدون خرید دامنه)
+> ⚠️ **درس طلایی (تجربه‌ی واقعی):** IP رکورد مادر (`n-cpanel.xyz` → 85.158.145.202) **IP وبِ حساب نیست!**
+> vhost هر حساب cPanel روی **IP اشتراکی خودش** bind می‌شود (در این هاست: `85.198.13.88` — از PTR هم مشخص است: `mail.client.nitrocpanel.ir`).
+> مرجع قطعی: cPanel → **General Information → Shared IP Address**. اگر DNS به IP اشتباه اشاره کند، همیشه ۴۰۴ می‌گیرید
+> حتی وقتی اپ کاملاً سالم است (دقیقاً همان چیزی که برای ما اتفاق افتاد!).
+
 1. **Zone Editor** (cPanel → Domains → Zone Editor): اگر زون `kaveh185.n-cpanel.xyz` هست،
-   رکورد **A** اضافه کنید: مقدار `85.158.145.202` (IP سرور از رکوردهای مادر).
+   رکورد **A** اضافه کنید: مقدار = **Shared IP** (`85.198.13.88`).
 2. اگر زون نبود: **دامنه‌ی رایگان `nip.io`** — هر زیردامنه‌ی شکل-IP به همان IP resolve می‌شود:
-   `85.158.145.202.nip.io` را در cPanel → Domains → Create a New Domain اضافه کنید،
+   `85.198.13.88.nip.io` را در cPanel → Domains → Create a New Domain اضافه کنید،
    Application URL را روی آن بگذارید، سپس **SSL/TLS Status → Run AutoSSL**.
 3. راه پایدار بلندمدت: دامنه‌ی اختصاصی + AutoSSL.
+4. نکته‌ی AutoSSL: صدور Let's Encrypt نیاز به تأیید مالکیت (DCV) دارد؛ اگر اعتبارسنجی HTTP از خارجِ ایران
+   به سرور نرسد، cPanel برای زون‌های روی NS خود هاست معمولاً **DCV از طریق DNS** را جایگزین می‌کند؛
+   اگر AutoSSL خطا داد، خروجی «SSL/TLS Status → Certificate Status» را بفرستید.
 
 ## ⏰ سناریوی پنجم: انحراف ساعت سرور (Clock Skew)
 اگر در صفحه‌ی خطای سرور تاریخ میلادی متفاوتی با امروز دیدید (مثلاً چند روز جلو)، یعنی **ساعت میزبان منحرف است**.
