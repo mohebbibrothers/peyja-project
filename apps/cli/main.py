@@ -160,13 +160,15 @@ def _seller_report(username: str, crawl: dict, extract: dict, catalog: list, ela
     ]
     for p in catalog:
         price = ""
+        on_request = False
         for v in p["variants"]:
             for o in v["offers"]:
                 if o["price_toman"]:
                     price = f"{o['price_toman']:,} تومان"
-        lines.append(
-            f"- **{p['title_fa']}** ({p.get('category') or '—'}) — {price or 'قیمت در دایرکت'}"
-        )
+                if o.get("stock_state") == "on_request":
+                    on_request = True
+        label = price or ("قیمت در دایرکت" if on_request else "—")
+        lines.append(f"- **{p['title_fa']}** ({p.get('category') or '—'}) — {label}")
     lines += ["", "> تولیدشده با Peyja — Data Spine v0.1"]
     return "\n".join(lines)
 
@@ -233,9 +235,11 @@ async def _doctor() -> None:
         await provider.aclose()
 
     try:
+        from sqlalchemy import text
+
         engine = get_engine()
         async with engine.connect() as conn:
-            await conn.execute(__import__("sqlalchemy").text("SELECT 1"))
+            await conn.execute(text("SELECT 1"))
         checks.append(("دیتابیس", True, settings.effective_database_url.split("://")[0]))
     except Exception as e:
         checks.append(("دیتابیس", False, str(e)[:80]))

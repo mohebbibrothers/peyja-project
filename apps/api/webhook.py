@@ -71,8 +71,18 @@ async def boxapi_webhook(
         if existing:
             return {"status": "duplicate"}
 
-        # رویدادهای action.* نتیجه‌ی اکشن‌های async هستند ← همان لحظه پردازش‌شده تلقی می‌شوند
-        processed = event_type.startswith("action.")
+        # طبقه‌بندی + ثبت پیام‌های ورودی (حلقه‌ی رسمی)
+        from peyja.loop.dispatcher import classify_event, record_inbound
+
+        classified = classify_event(payload)
+        await record_inbound(session, classified)
+
+        processed = classified.kind in (
+            "action_result",
+            "inbound_message",
+            "echo_message",
+            "comment",
+        )
         session.add(
             WebhookEvent(
                 event_id=event_id,
