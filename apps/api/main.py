@@ -1,0 +1,32 @@
+"""API اصلی Peyja — FastAPI.
+
+«سیستم‌عامل سمت عرضه» — فاز یک: ستون فقرات داده.
+وب‌هوک روی چند مسیر مستقر است تا با هر تنظیم داشبورد سازگار باشد.
+"""
+
+from fastapi import FastAPI
+
+from apps.api.webhook import boxapi_webhook, boxapi_webhook_health
+from apps.api.webhook import router as webhook_router
+
+app = FastAPI(
+    title="Peyja — Supply-Side OS",
+    version="0.2.0",
+    description="Data Spine for Agentic Commerce · لوازم آرایشی بهداشتی",
+)
+app.include_router(webhook_router, prefix="/webhooks")
+app.include_router(webhook_router, prefix="/webhook")  # alias
+
+# مسیرهای سازگار با تنظیمات رایج داشبورد
+app.add_api_route("/webhook", boxapi_webhook, methods=["POST"], include_in_schema=False)
+app.add_api_route("/webhook/", boxapi_webhook_health, methods=["GET"], include_in_schema=False)
+
+
+@app.get("/health")
+async def health() -> dict[str, str]:
+    return {"status": "ok", "service": "peyja-spine"}
+
+
+@app.get("/")
+async def root() -> dict[str, str]:
+    return {"service": "peyja", "docs": "/docs", "webhook": "/webhooks/boxapi"}
