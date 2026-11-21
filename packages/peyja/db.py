@@ -29,6 +29,15 @@ def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _session_factory
 
 
+async def ensure_schema() -> None:
+    """ساخت جداول در صورت نبود (راحتی توسعه/استقرار SQLite — برای Postgres: Alembic)."""
+    from peyja.models import Base
+
+    engine = get_engine()
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+
 async def session_scope() -> AsyncIterator[AsyncSession]:
     """جلسه‌ی کاری کوتاه برای CLI/worker."""
     factory = get_session_factory()

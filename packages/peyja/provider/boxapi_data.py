@@ -52,7 +52,7 @@ class BoxApiDataProvider:
     def __init__(self, token: str | None = None, base_url: str | None = None):
         settings = get_settings()
         self._token = token or settings.boxapi_data_token
-        self._base_url = (base_url or settings.boxapi_base_url).rstrip("/")
+        self._base_url = (base_url or settings.boxapi_data_url).rstrip("/")
         self._limiter = RateLimiter()
         self._client = httpx.AsyncClient(timeout=30.0)
 
@@ -90,7 +90,15 @@ class BoxApiDataProvider:
 
     @staticmethod
     def _body(data: dict[str, Any]) -> dict[str, Any]:
-        return data.get("response", {}).get("body", {}) or {}
+        body = data.get("response", {}).get("body", {}) or {}
+        if isinstance(body, str):
+            import json
+
+            try:
+                body = json.loads(body)
+            except ValueError:
+                return {}
+        return body
 
     # ----- User -----
     async def get_user_by_username(self, username: str) -> IgProfile:

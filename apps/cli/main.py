@@ -24,10 +24,11 @@ def crawl(username: str, max_media: int = typer.Option(60, help="حداکثر ت
 
 
 async def _crawl(username: str, max_media: int) -> None:
-    from peyja.db import get_session_factory
+    from peyja.db import ensure_schema, get_session_factory
     from peyja.ingest.crawler import BudgetExceeded, CrawlBudgetGuard, Crawler
     from peyja.provider.boxapi_data import BoxApiDataProvider
 
+    await ensure_schema()
     factory = get_session_factory()
     provider = BoxApiDataProvider()
     async with factory() as session:
@@ -48,9 +49,10 @@ def extract(page_id: int) -> None:
 
 
 async def _extract(page_id: int) -> None:
-    from peyja.db import get_session_factory
+    from peyja.db import ensure_schema, get_session_factory
     from peyja.extract.pipeline import ExtractionPipeline
 
+    await ensure_schema()
     factory = get_session_factory()
     async with factory() as session:
         pipeline = ExtractionPipeline(session)
@@ -70,12 +72,13 @@ async def _build(username: str, out: Path) -> None:
 
     from sqlalchemy import select
 
-    from peyja.db import get_session_factory
+    from peyja.db import ensure_schema, get_session_factory
     from peyja.extract.pipeline import ExtractionPipeline
     from peyja.ingest.crawler import Crawler
     from peyja.models import Offer, Page, Product, Variant
     from peyja.provider.boxapi_data import BoxApiDataProvider
 
+    await ensure_schema()
     t0 = time.perf_counter()
     factory = get_session_factory()
     provider = BoxApiDataProvider()
