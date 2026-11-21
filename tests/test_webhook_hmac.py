@@ -78,3 +78,31 @@ def test_whsec_prefixed_secret_accepted():
     sig = _sign(raw, ts)  # امضا با کلید بدون پیشوند
     result = verify_boxapi_signature("whsec_" + SECRET, raw, sig, ts)
     assert result.ok
+
+
+def test_clock_skew_resilience_via_tolerance():
+    """ساعت سرور میزبان ممکن است منحرف باشد؛ تحمل‌پذیری از تنظیمات می‌آید."""
+    body = b'{"event":"message.received"}'
+    ts = 1_700_000_000
+    message = f"{ts}.".encode() + body
+    sig = hmac.new(b"whsec_test_secret", message, hashlib.sha256).hexdigest()
+    skewed_now = float(ts + 6 * 86_400)  # ساعت سرور ۶ روز جلوست
+
+    rejected = verify_boxapi_signature(
+        secret="whsec_test_secret",
+        raw_body=body,
+        signature_header=sig,
+        timestamp_header=str(ts),
+        now=skewed_now,
+    )
+    assert not rejected.ok
+
+    accepted = verify_boxapi_signature(
+        secret="whsec_test_secret",
+        raw_body=body,
+        signature_header=sig,
+        timestamp_header=str(ts),
+        tolerance_seconds=7 * 86_400,
+        now=skewed_now,
+    )
+    assert accepted.ok

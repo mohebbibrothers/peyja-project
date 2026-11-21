@@ -294,6 +294,29 @@ async def _doctor() -> None:
         except Exception as e:
             checks.append((f"وب محلی · {label}", False, f"عدم اتصال: {str(e)[:60]}"))
 
+    # ── انحراف ساعت سرور: برای تأیید HMAC وب‌هوک (پنجره‌ی زمانی) حیاتی است ──
+    import time as _time
+    from email.utils import parsedate_to_datetime as _pdate
+
+    try:
+        async with _httpx.AsyncClient(timeout=8, follow_redirects=True) as c:
+            r = await c.head("https://boxapi.ir")
+        remote_ts = _pdate(r.headers["Date"]).timestamp()
+        skew = _time.time() - remote_ts
+        if abs(skew) <= 300:
+            checks.append(("ساعت سرور", True, f"انحراف {skew:.0f} ثانیه — در محدوده‌ی امن"))
+        else:
+            checks.append(
+                (
+                    "ساعت سرور",
+                    False,
+                    f"انحراف {skew / 86400:+.1f} روز! در .env مقدار WEBHOOK_TOLERANCE_SECONDS "
+                    f"را ≥ {int(abs(skew)) + 300} بگذارید (راهنما: docs/DEPLOY-cpanel.md)",
+                )
+            )
+    except Exception as e:
+        checks.append(("ساعت سرور", False, f"عدم امکان سنجش: {str(e)[:60]}"))
+
     width = max(len(c[0]) for c in checks)
     for name, ok, detail in checks:
         mark = "✅" if ok else "❌"

@@ -47,6 +47,7 @@ async def boxapi_webhook(
         raw_body=raw,
         signature_header=x_boxapi_signature or "",
         timestamp_header=x_boxapi_timestamp or "",
+        tolerance_seconds=settings.webhook_tolerance_seconds,
     )
     if not verification.ok:
         raise HTTPException(status_code=401, detail=verification.reason)

@@ -46,7 +46,9 @@ def verify_boxapi_signature(
 
     current = now if now is not None else time.time()
     if abs(current - ts) > tolerance_seconds:
-        return WebhookVerification(False, "تایم‌استمپ خارج از پنجره‌ی ۳۰۰ ثانیه‌ای (احتمال replay)")
+        return WebhookVerification(
+            False, f"تایم‌استمپ خارج از پنجره‌ی {tolerance_seconds} ثانیه‌ای (احتمال replay)"
+        )
 
     message = f"{timestamp_header}.".encode() + raw_body
     sig = signature_header.strip().lower()
