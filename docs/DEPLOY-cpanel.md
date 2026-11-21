@@ -64,9 +64,14 @@ python -m apps.cli.main doctor
 
 ## سناریوی «۴۰۴ استاتیک cPanel» (تجربه‌ی واقعی)
 اگر آزمون محلی، صفحه‌ی ۴۰۴ استاندارد cPanel برگرداند (نه JSON):
-- وب‌سرور و SSL سالم‌اند؛ ولی دامنه به اپ Passenger **bind نشده**.
-- رفع: Setup Python App → Edit اپ → فیلد **Application URL** = دامنه → Save → Restart.
-- سپس دوباره آزمون محلی → باید JSON سلامت بیاید.
+- ⚠️ **اول منفی کاذب را حذف کنید:** نام‌های مجازی cPanel روی IP عمومی سرور bind می‌شوند؛
+  آزمون با `127.0.0.1` ممکن است به vhost پیش‌فرض بخورد و ۴۰۴ کاذب بدهد.
+  آزمون معتبر از **بیرون** (بدون نیاز به DNS — روی سیستم خودتان):
+  `curl -k --resolve kaveh185.n-cpanel.xyz:443:85.158.145.202 https://kaveh185.n-cpanel.xyz/health`
+- اگر آزمون بیرونی هم ۴۰۴ داد: وب‌سرور به اپ **نمی‌رساند** — مراحل رفع:
+  Setup Python App → Edit اپ → فیلد **Application URL** = دامنه (+ مسیر `/` به‌صورت صریح) → Save → Restart.
+  سپس `~/public_html/.htaccess` را ببینید: باید حاوی `PassengerAppRoot`/`PassengerBaseURI` باشد؛
+  اگر نبود، خودتان بنویسید (الگو در همین سند) و دوباره Restart کنید.
 
 ## رفع DNS بدون تیکت (بدون خرید دامنه)
 1. **Zone Editor** (cPanel → Domains → Zone Editor): اگر زون `kaveh185.n-cpanel.xyz` هست،
@@ -75,6 +80,19 @@ python -m apps.cli.main doctor
    `85.158.145.202.nip.io` را در cPanel → Domains → Create a New Domain اضافه کنید،
    Application URL را روی آن بگذارید، سپس **SSL/TLS Status → Run AutoSSL**.
 3. راه پایدار بلندمدت: دامنه‌ی اختصاصی + AutoSSL.
+
+## ⏰ سناریوی پنجم: انحراف ساعت سرور (Clock Skew)
+اگر در صفحه‌ی خطای سرور تاریخ میلادی متفاوتی با امروز دیدید (مثلاً چند روز جلو)، یعنی **ساعت میزبان منحرف است**.
+این برای تأیید HMAC وب‌هوک BoxAPI (پنجره‌ی ۳۰۰ ثانیه) کشنده است: همه‌ی رویدادها reject می‌شوند.
+`doctor` انحراف را در ردیف «ساعت سرور» گزارش می‌کند. رفع (بدون تیکت — ساعت هاست اشتراکی قابل تغییر نیست):
+
+```bash
+cd /home/kavehncp/peyja
+echo 'WEBHOOK_TOLERANCE_SECONDS=604800' >> .env   # ۷ روز؛ ≥ انحراف + ۳۰۰
+```
+
+سپس Setup Python App → **Restart**. هزینه‌ی امنیتی: بازپخش رویدادهای قدیمی در همان بازه ممکن می‌شود؛
+در production با سرور اختصاصی، ساعت را با `chrony` همگام و مقدار را به ۳۰۰ برگردانید.
 
 ## نکات معماری
 - Passenger فقط WSGI می‌فهمد ← `a2wsgi.ASGIMiddleware` در `passenger_wsgi.py` پل ASGI است.
