@@ -359,5 +359,92 @@ async def _doctor() -> None:
         raise typer.Exit(code=1)
 
 
+@app.command("selftest-webhook")
+def selftest_webhook(
+    url: str = typer.Option(
+        "http://127.0.0.1/webhooks/boxapi",
+        "--url",
+        help="آدرس وب‌هوک — برای آزمون عمومی بدون DNS: http://<IP>/webhooks/boxapi",
+    ),
+    host: str = typer.Option(
+        "", "--host", help="هدر Host برای آزمون با IP (مثلاً kaveh185.n-cpanel.xyz)"
+    ),
+    sender: str = typer.Option("selftest-user", "--sender", help="شناسه‌ی فرستنده‌ی شبیه‌سازی‌شده"),
+) -> None:
+    """آزمون سرتاسری حلقه‌ی وب‌هوک: امضای HMAC + POST واقعی + گزارش ثبت در دیتابیس."""
+    asyncio.run(_selftest_webhook(url, host, sender))
+
+
+async def _selftest_webhook(url: str, host: str, sender: str) -> None:
+    import time as _t
+
+    import httpx
+    from sqlalchemy import select
+
+    from peyja.config import get_settings
+    from peyja.db import get_session_factory
+    from peyja.ingest.webhook import sign_payload
+    from peyja.models import Message, WebhookEvent
+
+    settings = get_settings()
+    if not settings.boxapi_webhook_secret:
+        typer.echo("❌ WEBHOOK_SECRET در .env تنظیم نشده")
+        raise typer.Exit(code=1)
+
+    now_ms = int(_t.time() * 1000)
+    event_id = f"selftest-{now_ms}"
+    body = {
+        "event_type": "messaging",
+        "account_id": "selftest-account",
+        "data": {
+            "sender": {"id": sender},
+            "recipient": {"id": "17841429538161969"},
+            "message": {"mid": event_id, "text": "پیام آزمایشی حلقه‌ی پیجا"},
+            "timestamp": now_ms,
+        },
+    }
+    raw = json.dumps(body, ensure_ascii=False).encode()
+    ts, sig = sign_payload(settings.boxapi_webhook_secret, raw)
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-BoxApi-Signature": sig,
+        "X-BoxApi-Timestamp": ts,
+        "X-BoxApi-Event-Id": event_id,
+    }
+    if host:
+        headers["Host"] = host
+
+    typer.echo(f"→ POST {url}" + (f" (Host: {host})" if host else ""))
+    try:
+        async with httpx.AsyncClient(timeout=15, verify=False) as c:
+            r = await c.post(url, content=raw, headers=headers)
+        typer.echo(f"پاسخ وب‌هوک: HTTP {r.status_code}  {r.text[:200]}")
+    except Exception as e:
+        typer.echo(f"❌ عدم اتصال: {str(e) or type(e).__name__}")
+        raise typer.Exit(code=1) from e
+
+    if r.status_code != 200:
+        raise typer.Exit(code=1)
+
+    factory = get_session_factory()
+    async with factory() as session:
+        ev = (
+            await session.execute(select(WebhookEvent).where(WebhookEvent.event_id == event_id))
+        ).scalar_one_or_none()
+        msg = (
+            await session.execute(select(Message).where(Message.mid == event_id))
+        ).scalar_one_or_none()
+
+    if ev:
+        typer.echo(f"✅ رویداد در دیتابیس ثبت شد: {ev.event_type} @ {ev.received_at}")
+    else:
+        typer.echo("⚠️ رویداد در دیتابیس پیدا نشد (پاسخ از مسیر دیگری آمده؟)")
+    if msg:
+        typer.echo(f"✅ پیام ورودی ثبت و پنجره‌ی ۲۴ ساعته باز شد: «{msg.text}»")
+    else:
+        typer.echo("⚠️ پیام ورودی ثبت نشد")
+
+
 if __name__ == "__main__":
     app()

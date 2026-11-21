@@ -106,3 +106,18 @@ def test_clock_skew_resilience_via_tolerance():
         now=skewed_now,
     )
     assert accepted.ok
+
+
+def test_sign_payload_roundtrip():
+    """امضای تولیدی باید توسط تأییدکننده پذیرفته شود (حلقه‌ی self-test)."""
+    from peyja.ingest.webhook import sign_payload
+
+    body = b'{"event_type":"messaging","account_id":"selftest"}'
+    ts, sig = sign_payload("whsec_test_secret", body)
+    result = verify_boxapi_signature(
+        secret="whsec_test_secret",
+        raw_body=body,
+        signature_header=sig,
+        timestamp_header=ts,
+    )
+    assert result.ok
