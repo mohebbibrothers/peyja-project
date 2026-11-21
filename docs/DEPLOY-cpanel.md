@@ -62,6 +62,20 @@ python -m apps.cli.main doctor
 آزمون محلی روی سرور (`curl -k -H "Host: ..." https://127.0.0.1/health`) سلامت اپ را از خرابی DNS جدا می‌کند.
 برای وب‌هوک BoxAPI حتماً HTTPS معتبر لازم است ← دامنه‌ی اختصاصی + AutoSSL مسیر پایدار است.
 
+## سناریوی «۴۰۴ استاتیک cPanel» (تجربه‌ی واقعی)
+اگر آزمون محلی، صفحه‌ی ۴۰۴ استاندارد cPanel برگرداند (نه JSON):
+- وب‌سرور و SSL سالم‌اند؛ ولی دامنه به اپ Passenger **bind نشده**.
+- رفع: Setup Python App → Edit اپ → فیلد **Application URL** = دامنه → Save → Restart.
+- سپس دوباره آزمون محلی → باید JSON سلامت بیاید.
+
+## رفع DNS بدون تیکت (بدون خرید دامنه)
+1. **Zone Editor** (cPanel → Domains → Zone Editor): اگر زون `kaveh185.n-cpanel.xyz` هست،
+   رکورد **A** اضافه کنید: مقدار `85.158.145.202` (IP سرور از رکوردهای مادر).
+2. اگر زون نبود: **دامنه‌ی رایگان `nip.io`** — هر زیردامنه‌ی شکل-IP به همان IP resolve می‌شود:
+   `85.158.145.202.nip.io` را در cPanel → Domains → Create a New Domain اضافه کنید،
+   Application URL را روی آن بگذارید، سپس **SSL/TLS Status → Run AutoSSL**.
+3. راه پایدار بلندمدت: دامنه‌ی اختصاصی + AutoSSL.
+
 ## نکات معماری
 - Passenger فقط WSGI می‌فهمد ← `a2wsgi.ASGIMiddleware` در `passenger_wsgi.py` پل ASGI است.
 - دیتابیس: SQLite (فایل `data/app.db` داخل ریشه‌ی اپ) — مناسب هاست اشتراکی؛ بعداً Postgres.

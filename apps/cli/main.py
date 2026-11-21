@@ -254,6 +254,30 @@ async def _doctor() -> None:
         )
     )
 
+    # ── لایه‌ی وب: آیا وب‌سرور درخواست را به اپ می‌رساند؟ (آزمون محلی — بدون نیاز به DNS) ──
+    import httpx as _httpx
+
+    web_host = (settings.app_url or settings.boxapi_domain or "").split("//")[-1].split("/")[0]
+    for scheme in ("https", "http"):
+        try:
+            async with _httpx.AsyncClient(verify=False, timeout=8) as c:
+                r = await c.get(
+                    f"{scheme}://127.0.0.1/health",
+                    headers={"Host": web_host} if web_host else None,
+                )
+            if r.status_code == 200 and "peyja" in r.text:
+                checks.append((f"وب محلی ({scheme})", True, "درخواست به اپ رسید ✓"))
+                break
+            checks.append(
+                (
+                    f"وب محلی ({scheme})",
+                    False,
+                    f"HTTP {r.status_code} — وب‌سرور به اپ نمی‌رساند (Application URL در Setup Python App؟)",
+                )
+            )
+        except Exception as e:
+            checks.append((f"وب محلی ({scheme})", False, f"عدم اتصال: {str(e)[:60]}"))
+
     width = max(len(c[0]) for c in checks)
     for name, ok, detail in checks:
         mark = "✅" if ok else "❌"
