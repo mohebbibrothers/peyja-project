@@ -254,29 +254,45 @@ async def _doctor() -> None:
         )
     )
 
-    # ── لایه‌ی وب: آیا وب‌سرور درخواست را به اپ می‌رساند؟ (آزمون محلی — بدون نیاز به DNS) ──
+    # ── لایه‌ی وب: آیا وب‌سرور درخواست را به اپ می‌رساند؟ ──
+    # هشدار مهم: نام‌های مجازی (vhost) در cPanel معمولاً روی IP عمومی سرور تعریف می‌شوند؛
+    # آزمون روی 127.0.0.1 ممکن است به vhost پیش‌فرض بخورد و «منفی کاذب» بدهد.
+    # برای همین هم loopback و هم IP عمومی سرور را با هدر Host آزمایش می‌کنیم.
+    import socket as _socket
+
     import httpx as _httpx
 
     web_host = (settings.app_url or settings.boxapi_domain or "").split("//")[-1].split("/")[0]
-    for scheme in ("https", "http"):
+    try:
+        with _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM) as s:
+            s.connect(("8.8.8.8", 80))
+            server_ip = s.getsockname()[0]
+    except Exception:
+        server_ip = ""
+
+    targets = [("loopback", "127.0.0.1")]
+    if server_ip:
+        targets.append((f"IP سرور {server_ip}", server_ip))
+
+    for label, addr in targets:
         try:
             async with _httpx.AsyncClient(verify=False, timeout=8) as c:
                 r = await c.get(
-                    f"{scheme}://127.0.0.1/health",
+                    f"http://{addr}/health",
                     headers={"Host": web_host} if web_host else None,
                 )
             if r.status_code == 200 and "peyja" in r.text:
-                checks.append((f"وب محلی ({scheme})", True, "درخواست به اپ رسید ✓"))
-                break
-            checks.append(
-                (
-                    f"وب محلی ({scheme})",
-                    False,
-                    f"HTTP {r.status_code} — وب‌سرور به اپ نمی‌رساند (Application URL در Setup Python App؟)",
+                checks.append((f"وب محلی · {label}", True, "درخواست به اپ رسید ✓"))
+            else:
+                checks.append(
+                    (
+                        f"وب محلی · {label}",
+                        False,
+                        f"HTTP {r.status_code} — وب‌سرور به اپ نمی‌رساند (Application URL / .htaccess / docroot)",
+                    )
                 )
-            )
         except Exception as e:
-            checks.append((f"وب محلی ({scheme})", False, f"عدم اتصال: {str(e)[:60]}"))
+            checks.append((f"وب محلی · {label}", False, f"عدم اتصال: {str(e)[:60]}"))
 
     width = max(len(c[0]) for c in checks)
     for name, ok, detail in checks:
