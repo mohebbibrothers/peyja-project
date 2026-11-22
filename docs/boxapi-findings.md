@@ -127,3 +127,31 @@
 | ۱ | انولوپ `data.messaging[]` نادیده گرفته می‌شد | `ig_user_id=None` → بدون ثبت/پاسخ | `classify_events()` |
 | ۲ | مقایسه‌ی امضا بدون برداشتن `sha256=` | 401 برای همه‌ی رویدادهای واقعی | `verify` strip prefix |
 | ۳ | secret ناهماهنگ/نبود → 401 بی‌صدا | رویداد unsigned رد می‌شد | لاگ هشدار + راهنمای پنل |
+
+---
+
+## ۷) قرارداد اکشن‌های ارسال — «۲۰۲ِ دروغین» (درس ۱۴۰۵/۰۹/۰۵)
+
+منبع: curl نمونه‌ی رسمی `boxapi.ir/instagram-dm-api/` + پروب زنده‌ی مقایسه‌ای A/B:
+
+```bash
+curl --request POST \
+  --url 'YOUR_BASE_URL/service/actions/send_message' \
+  --header 'Content-Type: application/json' \
+  --header 'X-Api-Key: YOUR_ACCESS_TOKEN' \
+  --data '{ "account_id": "…UUID…", "recipient_id": "…", "message": "…" }'
+```
+
+**بدنه «تخت» است** — فیلدها در سطح بالای JSON، نه داخل `{"data": ...}`.
+
+نتایج پروب زنده (با account_id جعلی):
+
+| شکل بدنه | پاسخ فوری | معنی |
+|----------|-----------|------|
+| تخت (مستند رسمی) | `422 The selected account id is invalid.` + `errors` فیلدها | ✅ بدنه parse شد؛ اعتبارسنجی فوری و دقیق |
+| پیچیده `{"data": …}` (کد قبلی ما) | `202 accepted and queued` | ❌ **۲۰۲ِ دروغین** — ورکر async بعداً با «recipient_id and message are required» رد می‌کند (همان خطای دیده‌شده در پنل BoxAPI) |
+
+**درس معماری:** پاسخ 202 فقط یعنی «در صف رفت»، نه «payload معتبر بود»؛ هرگز 202 را موفقیتِ اعتبارسنجی تفسیر نکن. خطای نهایی اکشن‌ها از وب‌هوک با `event_type: action.*` یا لاگ پنل می‌آید.
+
+پاکت پاسخ: `{"success": bool, "message": str, "status_code": int, "data": ..., "errors": {...}}` —
+فیلد `errors` (پیام فیلدها) حالا در `OfficialApiError` نگه داشته می‌شود.

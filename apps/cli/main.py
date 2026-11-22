@@ -467,5 +467,99 @@ async def _selftest_webhook(url: str, host: str, sender: str) -> None:
         typer.echo("⚠️ پیام ورودی ثبت نشد")
 
 
+@app.command()
+def events(limit: int = typer.Option(5, "--limit", "-n", help="تعداد ردیف‌ها")) -> None:
+    """آخرین رویدادهای وب‌هوک و پیام‌ها از دیتابیس — حقیقت مطلقِ «چه چیزی رسید»."""
+    asyncio.run(_events(limit))
+
+
+async def _events(limit: int) -> None:
+    from sqlalchemy import select
+
+    from peyja.db import ensure_schema, get_session_factory
+    from peyja.models import Conversation, Message, WebhookEvent
+
+    await ensure_schema()
+    factory = get_session_factory()
+    async with factory() as session:
+        evs = (
+            (
+                await session.execute(
+                    select(WebhookEvent).order_by(WebhookEvent.received_at.desc()).limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        convs = (
+            (
+                await session.execute(
+                    select(Conversation).order_by(Conversation.id.desc()).limit(limit)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        msgs = (
+            (
+                await session.execute(
+                    select(Message).order_by(Message.sent_at.desc()).limit(limit * 2)
+                )
+            )
+            .scalars()
+            .all()
+        )
+
+    typer.echo(f"— آخرین {len(evs)} رویداد وب‌هوک —")
+    for e in evs:
+        typer.echo(
+            f"  {e.received_at}  {e.event_type:<12} id={e.event_id}  "
+            f"account={e.account_id or '-'}  processed={'✓' if e.processed_at else '✗'}"
+        )
+    if not evs:
+        typer.echo("  (هیچ رویدادی ثبت نشده — یعنی وب‌هوکی نرسیده)")
+    typer.echo(f"— آخرین {len(convs)} مکالمه —")
+    for c in convs:
+        typer.echo(
+            f"  user={c.ig_user_id}  account={c.account_id}  state={c.state}  window={c.window_expires_at}"
+        )
+    typer.echo(f"— آخرین {len(msgs)} پیام —")
+    for m in msgs:
+        typer.echo(f"  [{m.direction}] {m.sent_at}  mid={m.mid}  «{(m.text or '')[:60]}»")
+
+
+@app.command("send-message")
+def send_message_cmd(
+    to: str = typer.Option(..., "--to", help="شناسه‌ی اینستاگرامی گیرنده (ig user id)"),
+    text: str = typer.Option(..., "--text", help="متن پیام"),
+    account_id: str = typer.Option("", "--account-id", help="UUID پیج — خالی = اولین اکانت"),
+) -> None:
+    """ارسال مستقیم تستی — مسیر «فرستادن» را بدون وب‌هوک محک می‌زند (ابزار دیباگ)."""
+    asyncio.run(_send_message_cmd(to, text, account_id))
+
+
+async def _send_message_cmd(to: str, text: str, account_id: str) -> None:
+    from peyja.provider.boxapi_official import BoxApiOfficialProvider, OfficialApiError
+
+    provider = BoxApiOfficialProvider()
+    try:
+        if not account_id:
+            accounts = await provider.get_accounts()
+            if not accounts:
+                typer.echo("❌ هیچ اکانتی به این کلید API وصل نیست")
+                raise typer.Exit(code=1)
+            first = accounts[0]
+            account_id = str(first.get("id") or first.get("account_id") or "")
+            typer.echo(f"→ account_id (خودکار): {account_id}  ({first.get('username', '?')})")
+        typer.echo(f"→ POST send_message  to={to}  «{text}»")
+        result = await provider.send_message(account_id, to, text)
+        typer.echo(f"✅ پذیرفته و در صف رفت: {json.dumps(result, ensure_ascii=False)}")
+    except OfficialApiError as e:
+        typer.echo(f"❌ BoxAPI رد کرد: {e}")
+        raise typer.Exit(code=1) from e
+    finally:
+        await provider.aclose()
+
+
 if __name__ == "__main__":
     app()

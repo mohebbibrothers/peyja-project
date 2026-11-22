@@ -3,8 +3,11 @@
 واقعیت‌های کشف‌شده با پروب زنده (۲۰۲۶-۱۱):
 - میزبان: https://api.sendbox.chat/api/v1
 - GET  /service/accounts                      ← فهرست پیج‌های متصل (X-Api-Key)
-- POST /service/actions/{action}  body={"data": {...}}
+- POST /service/actions/{action}  body={...فیلدها در سطح بالا — تخت}
         ← 202 {"success":true,"data":{"accepted":true,"action","event_id"}}
+        ⚠️ 202 فقط یعنی «در صف رفت»؛ اعتبارسنجی payload در ورکر async است.
+        پیچیدن در {"data":...} = 202ِ دروغین ⇒ شکست با «recipient_id and message
+        are required» در پنل (تجربه‌ی واقعی ۱۴۰۵/۰۹/۰۵ — مستند + پروب A/B).
         اکشن‌ها async هستند؛ نتیجه از وب‌هوک با event_type «action.*» می‌آید
 - پاکت پاسخ: {"success": bool, "message": str, "status_code": int, "data": ...}
 - اکشن‌های ناشناخته: 404 «Unknown action» (اعتبارسنجی سمت سرور)
@@ -20,9 +23,11 @@ from peyja.config import get_settings
 
 
 class OfficialApiError(Exception):
-    def __init__(self, code: Any, message: str):
+    def __init__(self, code: Any, message: str, errors: Any = None):
         self.code = code
-        super().__init__(f"[{code}] {message}")
+        self.errors = errors
+        detail = f"{message} | errors={errors}" if errors else message
+        super().__init__(f"[{code}] {detail}")
 
 
 class BoxApiOfficialProvider:
@@ -42,11 +47,16 @@ class BoxApiOfficialProvider:
 
     # ----- هسته -----
     async def _action(self, action: str, data: dict[str, Any]) -> dict[str, Any]:
-        """یک اکشن صف می‌شود (202). نتیجه‌ی نهایی از وب‌هوک می‌آید."""
+        """یک اکشن صف می‌شود (202). نتیجه‌ی نهایی از وب‌هوک می‌آید.
+
+        بدنه «تخت» است — curl رسمی boxapi.ir فیلدها را در سطح بالای JSON می‌خواهد؛
+        پیچیدن در {"data": ...} = 202ِ دروغین (صف می‌شود ولی ورکر async با
+        «recipient_id and message are required» رد می‌کند).
+        """
         resp = await self._client.post(
             f"{self._base_url}/service/actions/{action}",
             headers=self._headers(),
-            json={"data": data},
+            json=data,
         )
         body = resp.json()
         if resp.status_code == 202 and body.get("success"):
@@ -55,7 +65,9 @@ class BoxApiOfficialProvider:
         if body.get("success"):
             return body.get("data") or {}
         raise OfficialApiError(
-            body.get("status_code", resp.status_code), body.get("message", str(body)[:300])
+            body.get("status_code", resp.status_code),
+            body.get("message", str(body)[:300]),
+            errors=body.get("errors"),
         )
 
     async def _get(self, path: str) -> Any:

@@ -4,6 +4,7 @@
 وب‌هوک روی چند مسیر مستقر است تا با هر تنظیم داشبورد سازگار باشد.
 """
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -12,6 +13,15 @@ from fastapi import FastAPI
 from apps.api.callback import router as callback_router
 from apps.api.webhook import boxapi_webhook, boxapi_webhook_health
 from apps.api.webhook import router as webhook_router
+
+# لاگ عملیاتی: بدون این دو خط، سطح INFO زیر آستانه‌ی پیش‌فرض می‌ماند و تصمیمات
+# حلقه‌ی پاسخ در لاگ میزبان نامرئی می‌شود (تجربه‌ی تلخِ دیباگ ۱۴۰۵/۰۹/۰۵).
+if not logging.getLogger().handlers:
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    )
+logging.getLogger("peyja").setLevel(logging.INFO)
 
 
 @asynccontextmanager

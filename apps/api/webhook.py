@@ -141,7 +141,16 @@ async def boxapi_webhook(
         reply = build_auto_reply(classified, auto_reply_text=settings.auto_reply_text)
         if reply and reply.recipient_id not in replied_to:
             replied_to.add(reply.recipient_id)
+            _log.info("🤖 پاسخ خودکار زمان‌بندی شد → %s", reply.recipient_id)
             background_tasks.add_task(send_auto_reply, reply)
+        elif classified.kind == "inbound_message":
+            _log.info(
+                "↩️ بدون پاسخ خودکار برای %s (متن=%s account=%s kind=%s)",
+                classified.ig_user_id,
+                "set" if settings.auto_reply_text else "EMPTY",
+                classified.account_id,
+                classified.kind,
+            )
 
     return {"status": "accepted", "event_type": event_type}
 
