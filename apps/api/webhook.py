@@ -9,7 +9,7 @@ from __future__ import annotations
 import time
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Header, HTTPException, Request
 from sqlalchemy import select
 
 from peyja.config import get_settings
@@ -35,6 +35,7 @@ def _prune_seen() -> None:
 @router.post("/boxapi/")
 async def boxapi_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     x_boxapi_signature: str | None = Header(default=None),
     x_boxapi_timestamp: str | None = Header(default=None),
     x_boxapi_event_id: str | None = Header(default=None),
@@ -95,6 +96,14 @@ async def boxapi_webhook(
             )
         )
         await session.commit()
+
+    # پاسخ خودکار P0 — در پس‌زمینه، تا پاسخ وب‌هوک تأخیر نگیرد
+    # (BoxAPI در صورت timeout تا ۳ بار retry می‌کند؛ پاسخ سریع = بدون پاسخ تکراری)
+    from peyja.loop.reply import build_auto_reply, send_auto_reply
+
+    reply = build_auto_reply(classified, auto_reply_text=settings.auto_reply_text)
+    if reply:
+        background_tasks.add_task(send_auto_reply, reply)
 
     return {"status": "accepted", "event_type": event_type}
 
