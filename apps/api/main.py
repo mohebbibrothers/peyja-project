@@ -4,16 +4,31 @@
 وب‌هوک روی چند مسیر مستقر است تا با هر تنظیم داشبورد سازگار باشد.
 """
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from apps.api.callback import router as callback_router
 from apps.api.webhook import boxapi_webhook, boxapi_webhook_health
 from apps.api.webhook import router as webhook_router
 
+
+@asynccontextmanager
+async def _lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    """برای استقرارهای ASGI (uvicorn). تحت Passenger/a2wsgi اجرا نمی‌شود —
+    آنجا مسیر وب‌هوک خودش schema را می‌سازد (_ensure_schema_once)."""
+    from peyja.db import ensure_schema
+
+    await ensure_schema()
+    yield
+
+
 app = FastAPI(
     title="Peyja — Supply-Side OS",
     version="0.2.0",
     description="Data Spine for Agentic Commerce · لوازم آرایشی بهداشتی",
+    lifespan=_lifespan,
 )
 app.include_router(webhook_router, prefix="/webhooks")
 app.include_router(webhook_router, prefix="/webhook")  # alias

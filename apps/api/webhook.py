@@ -23,6 +23,23 @@ router = APIRouter(tags=["webhooks"])
 _seen_events: dict[str, float] = {}
 _DEDUP_TTL = 3600.0
 
+_schema_ready = False
+
+
+async def _ensure_schema_once() -> None:
+    """ساخت schema پیش از اولین دسترسی DB — یک‌بار برای هر پروسه.
+
+    تحت Passenger پل a2wsgi «lifespan» را اجرا نمی‌کند (0 mention در سورس)،
+    پس تکیه‌ی صرف به startup event = خطای 500 «no such table» در محصول (تجربه‌ی واقعی).
+    """
+    global _schema_ready
+    if _schema_ready:
+        return
+    from peyja.db import ensure_schema
+
+    await ensure_schema()
+    _schema_ready = True
+
 
 def _prune_seen() -> None:
     now = time.time()
@@ -65,6 +82,7 @@ async def boxapi_webhook(
     payload = await request.json()
     event_type = str(payload.get("event_type", "unknown"))
 
+    await _ensure_schema_once()
     factory = get_session_factory()
     async with factory() as session:
         existing = (

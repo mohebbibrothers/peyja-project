@@ -237,10 +237,21 @@ async def _doctor() -> None:
     try:
         from sqlalchemy import text
 
+        from peyja.db import ensure_schema
+
+        await ensure_schema()  # دیتابیسِ خالی نباید هرگز «سبز» گزارش شود
         engine = get_engine()
+        detail = settings.effective_database_url.split("://")[0]
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
-        checks.append(("دیتابیس", True, settings.effective_database_url.split("://")[0]))
+            if settings.effective_database_url.startswith("sqlite"):
+                tables = (
+                    await conn.execute(
+                        text("SELECT count(*) FROM sqlite_master WHERE type='table'")
+                    )
+                ).scalar() or 0
+                detail = f"{detail} · جداول آماده ({tables} جدول)"
+        checks.append(("دیتابیس", True, detail))
     except Exception as e:
         checks.append(("دیتابیس", False, str(e)[:80]))
 
