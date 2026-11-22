@@ -140,3 +140,8 @@ cPanel هنگام «Create a New Domain» (حالت Registered Domain) بررس�
 - Passenger فقط WSGI می‌فهمد ← `a2wsgi.ASGIMiddleware` در `passenger_wsgi.py` پل ASGI است.
 - دیتابیس: SQLite (فایل `data/app.db` داخل ریشه‌ی اپ) — مناسب هاست اشتراکی؛ بعداً Postgres.
 - بعد از هر `git pull` روی هاست: `pip install -e .` (اگر وابستگی عوض شده) + **Restart**.
+- ⚠️ **قانون فرمان‌ها:** هر نشست SSH تازه = venv غیرفعال؛ اگر پرامپت `(peyja:3.12)` را نمی‌بینید،
+  `python` در دسترس نیست (`command not found`) و ممکن است دیتابیس اشتباه (از `~`) خوانده شود.
+  **راه بدون‌خطا:** فقط اسکریپت واحد را بزنید (فعال‌سازی venv و `cd` خودکار):
+  `bash /home/kavehncp/peyja/scripts/peyja.sh doctor` — و مثلاً
+  `bash /home/kavehncp/peyja/scripts/peyja.sh selftest-webhook --url https://<دامنه>/webhooks/boxapi`.
