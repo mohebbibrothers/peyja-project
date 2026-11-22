@@ -561,5 +561,53 @@ async def _send_message_cmd(to: str, text: str, account_id: str) -> None:
         await provider.aclose()
 
 
+@app.command("gold-sheet")
+def gold_sheet(
+    gold: Path = typer.Option(Path("evals/gold-100/samples.json"), "--gold", help="فایل نمونه‌های طلایی"),
+    out: Path = typer.Option(
+        Path("evals/gold-100/verification-sheet.md"), "--out", help="برگه‌ی تأیید انسانی"
+    ),
+) -> None:
+    """اعتبارسنجی مجموعه‌ی طلایی + ساخت برگه‌ی تأیید انسانی («یک نفر چک کند»)."""
+    from peyja.evals import render_verification_sheet, validate_gold
+
+    samples = json.loads(gold.read_text(encoding="utf-8"))
+    issues = validate_gold(samples)
+    if issues:
+        typer.echo(f"❌ {len(issues)} مشکل در مجموعه‌ی طلایی:")
+        for i in issues:
+            typer.echo(f"  - {i}")
+        raise typer.Exit(code=1)
+    out.write_text(render_verification_sheet(samples), encoding="utf-8")
+    typer.echo(f"✅ {len(samples)} نمونه معتبر — برگه‌ی تأیید: {out}")
+
+
+@app.command("gold-score")
+def gold_score(
+    gold: Path = typer.Option(Path("evals/gold-100/samples.json"), "--gold"),
+    pred: Path = typer.Option(Path("out/predictions.json"), "--pred"),
+) -> None:
+    """«عدد سرنوشت» — نمره‌ی extraction روی gold-100 + حکم گیت‌ها."""
+    from peyja.evals import score
+
+    gold_data = json.loads(gold.read_text(encoding="utf-8"))
+    preds = {p["id"]: p for p in json.loads(pred.read_text(encoding="utf-8"))}
+    result = score(gold_data, preds)
+    typer.echo(json.dumps(result, ensure_ascii=False, indent=2))
+    typer.echo()
+    typer.echo(
+        f"گیت قیمت (≥۸۵٪): {'✅ PASS' if result['gate_price_pass'] else '❌ FAIL'} "
+        f"({result['price_within_2pct']:.0%})"
+    )
+    typer.echo(
+        f"گیت دسته (≥۷۵٪): {'✅ PASS' if result['gate_category_pass'] else '❌ FAIL'} "
+        f"({result['category_accuracy']:.0%})"
+    )
+    typer.echo(
+        f"گیت ویژگی (≥۷۵٪): {'✅ PASS' if result['gate_attribute_pass'] else '❌ FAIL'} "
+        f"({result['attribute_accuracy']:.0%} از {result['attribute_labeled']} نمونه‌ی برچسب‌دار)"
+    )
+
+
 if __name__ == "__main__":
     app()

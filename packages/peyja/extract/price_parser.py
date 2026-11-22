@@ -106,8 +106,11 @@ def _plain_with_unit_pattern() -> re.Pattern:
 
 
 def _bare_pattern() -> re.Pattern:
-    """«۴۸۰» بدون واحد — در بازار ایران = هزار تومان (فوق‌العاده مهم)."""
-    return re.compile(r"(?<![\d/.,])(?P<num>\d{3,12})(?![\d/.,%])")
+    """«۴۸۰» بدون واحد — در بازار ایران = هزار تومان (فوق‌العاده مهم).
+
+    نگهبانِ پسوند واحد («250mil») مانعِ خواندنِ حجم/وزن به‌جای قیمت می‌شود.
+    """
+    return re.compile(r"(?<![\d/.,])(?P<num>\d{3,12})(?![\d/.,%]|(?:mil|ml|cc|kg|گرم|میل)\b)")
 
 
 def parse_price_fa(text: str) -> PriceParseResult:
@@ -234,6 +237,10 @@ def parse_price_fa(text: str) -> PriceParseResult:
             continue
         raw = m.group("num")
         if any(raw in c for c in covered):
+            continue
+        # حجم/وزن/سایز/شماره/تعداد/ساعت = مشخصه‌ی محصول است، نه قیمت («حجم ۴۰۰»)
+        before = t[max(0, m.start() - 12) : m.start()]
+        if re.search(r"(حجم|وزن|سایز|شماره|تعداد|ساعت|spf)\s*$", before, re.IGNORECASE):
             continue
         num = _to_int(raw)
         if num < 100:  # سایز/تعداد/شماره — قیمت نیست

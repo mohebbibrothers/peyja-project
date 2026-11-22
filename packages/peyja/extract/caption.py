@@ -32,9 +32,16 @@ COLOR_WORDS = [
     "عنابی",
     "سبز یشمی",
     "آبی نفتی",
+    "نود",
 ]
-SIZE_PATTERN = re.compile(r"(?:سایز|س)\s*[:\-]?\s*(\d{1,3}(?:\s*[-–،,]\s*\d{1,3})*)")
-COLOR_PATTERN = re.compile("|".join(COLOR_WORDS))
+SIZE_PATTERN = re.compile(
+    r"(?:سایز|سایزها|شماره|حجم|وزن|س)\s*[:\-]?\s*(\d{1,3}(?:\s*[-–،,]\s*\d{1,3})*)"
+)
+VOLUME_SUFFIX_PATTERN = re.compile(r"(?<![\d/.,])(\d{1,4})\s*(?:میل|ml|mil)\b")
+LATIN_TONES = [
+    "berry", "burgundy", "nude", "rose", "peach", "coral", "mauve", "plum", "mocha", "wine",
+]
+COLOR_PATTERN = re.compile("|".join(COLOR_WORDS + LATIN_TONES))
 MATERIAL_WORDS = ["چرم", "جیر", "نبوک", "پارچه‌ای", "کتان", "فلزی", "استیل", "پلاستیکی", "ضدآب"]
 
 
@@ -54,9 +61,14 @@ def analyze_caption(text: str | None) -> CaptionSignals:
     if size_m:
         norm = normalize(size_m.group(1))
         sizes = [s.strip() for s in re.split(r"[-–،,]", norm) if s.strip()]
+    # حجم با پسوند واحد: «۹۰ میل» «250mil» «۵۰ ml»
+    for vm in VOLUME_SUFFIX_PATTERN.finditer(normalize(t)):
+        v = vm.group(1)
+        if v not in sizes:
+            sizes.append(v)
     return CaptionSignals(
         prices=parse_price_fa(t),
-        colors=sorted(set(COLOR_PATTERN.findall(t))),
+        colors=sorted({c.lower() for c in COLOR_PATTERN.findall(t)}),
         sizes=sizes,
         materials=[m for m in MATERIAL_WORDS if m in t],
         hashtags=re.findall(r"#(\w+)", t),

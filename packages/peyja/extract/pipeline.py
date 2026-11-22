@@ -47,6 +47,7 @@ CATEGORY_MAP: dict[str, str] = {
     "آبرسان": "skincare",
     "فیس واش": "skincare",
     "شستشوی صورت": "skincare",
+    "ژل شستشو": "skincare",  # در نیچ آرایشی‌بهداشتی = شوینده‌ی صورت
     "ضد چروک": "skincare",
     "ضدجوش": "skincare",
     "ضدلک": "skincare",
@@ -69,25 +70,49 @@ CATEGORY_MAP: dict[str, str] = {
     "برنزه": "makeup",
     "پرایمر": "makeup",
     "بالم لب": "makeup",
+    "میکاپ": "makeup",
+    "لیپ گلاس": "makeup",
+    "لیپگلاس": "makeup",
+    "bb کرم": "makeup",  # کرم‌های پوشش‌دهنده = آرایشی (نه skincare)
+    "cc کرم": "makeup",
     # perfume
     "عطر": "perfume",
     "ادکلن": "perfume",
     "ادوپرفیوم": "perfume",
-    "اسپری": "perfume",
     # haircare
     "شامپو": "haircare",
     "نرم کننده": "haircare",
     "ماسک مو": "haircare",
     "روغن مو": "haircare",
     "سرم مو": "haircare",
+    "پوست سر": "haircare",
     "حالت دهنده": "haircare",
     # hygiene
+    "اسپری": "hygiene",  # اسپری بدن/ضدتعریق در بازار ایران = بهداشتی (عطر = perfume)
     "ضدعفونی": "hygiene",
-    "ژل شستشو": "hygiene",
     "دئودورانت": "hygiene",
-    "بهداشتی": "hygiene",
     "پد بهداشتی": "hygiene",
     "دستمال": "hygiene",
+    "ضد تعریق": "hygiene",
+    "ضدتعریق": "hygiene",
+    "بادی اسپلش": "hygiene",
+    "لوسیون بدن": "hygiene",
+    "داو": "hygiene",  # برند مراقبت بدن (نایت/مام/اسپری) در این نیچ
+    # makeup — برند/محصول مشخص
+    "شیگلم": "makeup",
+}
+
+# خانواده‌های عمومیِ دسته — با «اکثریتِ رویارویی» داوری می‌شوند، نه بلندترین واژه
+CATEGORY_FAMILY = {
+    "پوست": "skincare",
+    "پوستی": "skincare",
+    "اسکین کر": "skincare",
+    "اسکینکر": "skincare",
+    "مراقبتی": "skincare",
+    "میکاپ": "makeup",
+    "آرایش": "makeup",
+    "آرایشی": "makeup",
+    "بهداشتی": "hygiene",
 }
 
 
@@ -297,6 +322,9 @@ def _merge_price(
 ) -> tuple[int | None, str, float]:
     """ترکیب قیمت regex و VLM — regex پرقدرت اولویت دارد، seller_echo همیشه برنده."""
     if regex_price is not None and regex_price.confidence >= 0.8 and regex_price.value_toman:
+        # «توافقی/دایرکت» بر حدسِ بدون واحد مقدم است («حجم ۴۰۰» هرگز قیمت نیست)
+        if on_request and regex_price.confidence < 0.9:
+            return None, "on_request", 0.9
         return regex_price.value_toman, "caption", regex_price.confidence
     if vlm and vlm.price_toman:
         return vlm.price_toman, "vlm", max(vlm.confidence, 0.5)
@@ -313,8 +341,62 @@ def _derive_title(caption: str, max_len: int = 80) -> str:
     return (first_line or "محصول بدون عنوان")[:max_len]
 
 
+def _fold_fa(text: str) -> str:
+    """نرمال‌سازی املایی فارسی برای تطبیق: آ/أ/إ→ا، ي/ى/ئ→ی، ك→ک، ة→ه + lowercase لاتین.
+
+    «_» هشتگ‌ها به فاصله تبدیل می‌شود («بادی_اسپلش» = «بادی اسپلش»).
+    """
+    return text.replace("_", " ").translate(_FOLD_TABLE).lower()
+
+
+_FOLD_TABLE = str.maketrans({"آ": "ا", "أ": "ا", "إ": "ا", "ي": "ی", "ى": "ی", "ئ": "ی", "ك": "ک", "ة": "ه"})
+
+
+def _key_hits(folded: str, key: str) -> int:
+    """شمارشِ کلید در متن تاشده؛ برای کلیدهای کوتاه (≤۳ حرف) مرزِ واژه الزامی است.
+
+    «مداومه» حاوی «داو» نیست؛ «علاقه» حاوی «لاک» نیست؛ «کرمهای» حاوی «کرم» هست.
+    """
+    if len(key) > 3:
+        return folded.count(key)
+    n = 0
+    for m in re.finditer(re.escape(key), folded):
+        before = folded[m.start() - 1] if m.start() > 0 else " "
+        after = folded[m.end() :] if m.end() < len(folded) else ""
+        if _LETTER_RE.match(before):
+            continue
+        if (
+            after
+            and _LETTER_RE.match(after)
+            and not (after[0] == "ه" and (len(after) == 1 or after[1] in "ای "))
+            and not (after[0] == "ی" and (len(after) == 1 or not _LETTER_RE.match(after[1])))
+        ):
+            continue
+        n += 1
+    return n
+
+
+_LETTER_RE = re.compile(r"[A-Za-z\u0600-\u06FF]")
+
+
 def _guess_category(text: str) -> str | None:
-    for fa, en in CATEGORY_MAP.items():
-        if fa in text:
+    """دسته‌یابی دو لایه: محصول/برند مشخص (بلندترین) ← خانواده‌ی غالب (اکثریت).
+
+    «کرم پودر»/«پوست سر»/«bb کرم» بر «کرم»/«پوست» مقدم‌اند؛ «ابرسان» و «آبرسان»
+    یکی‌اند؛ کپشنِ «آرایشی و پوستی»ِ هم‌سطح = بدون دسته‌ی غالب (None).
+    """
+    folded = _fold_fa(text.replace("\u200c", " "))
+    for fa, en in sorted(CATEGORY_MAP.items(), key=lambda kv: -len(kv[0])):
+        if _key_hits(folded, _fold_fa(fa)):
             return en
-    return None
+    counts: dict[str, int] = {}
+    for fa, en in CATEGORY_FAMILY.items():
+        n = folded.count(_fold_fa(fa))
+        if n:
+            counts[en] = counts.get(en, 0) + n
+    if not counts:
+        return None
+    ranked = sorted(counts.items(), key=lambda kv: -kv[1])
+    if len(ranked) >= 2 and ranked[0][1] == ranked[1][1]:
+        return None  # خانواده‌های هم‌سطح — «آرایشی و پوستی» — بدون غالب
+    return ranked[0][0]

@@ -110,6 +110,7 @@ def test_persian_digits_normalized():
     """ارقام فارسی و لاتین یکسان‌اند."""
     fa = parse_price_fa("قیمت ۴/۸۰")
     en = parse_price_fa("قیمت 4/80")
+    assert fa.current is not None and en.current is not None
     assert fa.current.value_toman == en.current.value_toman == 4_800_000
 
 
