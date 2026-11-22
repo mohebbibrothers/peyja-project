@@ -145,6 +145,9 @@ cPanel هنگام «Create a New Domain» (حالت Registered Domain) بررس�
   **راه بدون‌خطا:** فقط اسکریپت واحد را بزنید (فعال‌سازی venv و `cd` خودکار):
   `bash /home/kavehncp/peyja/scripts/peyja.sh doctor` — و مثلاً
   `bash /home/kavehncp/peyja/scripts/peyja.sh selftest-webhook --url https://<دامنه>/webhooks/boxapi`.
+  ⚠️ **هرگز placeholder (مثل `<شناسه>`) داخل فرمان واقعی نگذارید** — شل آن را ریدایرکت می‌خواند
+  (`bash: شناسه‌ی: No such file` — تجربه‌ی ۱۴۰۵/۰۹/۰۵). فرمان‌ها یا مقدار قطعی دارند
+  (مثلاً `--to 1644835217375880`) یا مقدار را خودشان استخراج می‌کنند.
 
 ---
 

@@ -37,16 +37,29 @@ def _parse_ts(ms: Any) -> dt.datetime | None:
 
 
 def _classify_item(
-    account_id: str | None, item: dict[str, Any], payload: dict[str, Any]
+    account_id: str | None,
+    item: dict[str, Any],
+    payload: dict[str, Any],
+    force_echo: bool = False,
 ) -> ClassifiedEvent:
-    """یک آیتم از data.messaging[] (یا شکل تخت قدیمی) را طبقه‌بندی می‌کند."""
+    """یک آیتم از data.messaging[] (یا شکل تخت قدیمی) را طبقه‌بندی می‌کند.
+
+    معناشناسی ig_user_id همیشه «کاربرِ مقابل گفتگو» است: در پیام ورودی = فرستنده،
+    در echo/پیام خودمان = گیرنده (تا پیام‌های out درست به مکالمه بچسبند).
+    """
     sender = item.get("sender") or item.get("from") or {}
     recipient = item.get("recipient") or {}
     msg = item.get("message") or item.get("postback") or {}
-    ig_user_id = str(sender.get("id") or sender.get("username") or "") or None
-    is_echo = bool(msg.get("is_echo")) or (
-        bool(recipient.get("id")) and sender.get("id") == recipient.get("id")
+    is_echo = (
+        force_echo
+        or bool(msg.get("is_echo"))
+        or (bool(recipient.get("id")) and sender.get("id") == recipient.get("id"))
     )
+    if is_echo:
+        # پیام خودمان: طرفِ مقابل = گیرنده
+        ig_user_id = str(recipient.get("id") or recipient.get("username") or "") or None
+    else:
+        ig_user_id = str(sender.get("id") or sender.get("username") or "") or None
     return ClassifiedEvent(
         kind="echo_message" if is_echo else "inbound_message",
         account_id=account_id,
@@ -71,11 +84,13 @@ def classify_events(payload: dict[str, Any]) -> list[ClassifiedEvent]:
     if event_type.startswith("action."):
         return [ClassifiedEvent("action_result", account_id, raw=payload)]
 
-    if event_type in ("messaging", "message", "messaging_postbacks", "echo"):
+    if event_type in ("messaging", "message", "messaging_postbacks", "echo", "message_echoes"):
+        # message_echoes = نوعِ جداگانه‌ی echo در واقعیت (پیام‌های خودمان) — همه echo اند
+        force_echo = event_type in ("echo", "message_echoes")
         items = data.get("messaging")
         if not isinstance(items, list):
             items = [data]
-        return [_classify_item(account_id, item, payload) for item in items]
+        return [_classify_item(account_id, item, payload, force_echo=force_echo) for item in items]
 
     if event_type in ("comments", "mentions"):
         return [ClassifiedEvent("comment", account_id, raw=payload)]
@@ -90,8 +105,12 @@ def classify_event(payload: dict[str, Any]) -> ClassifiedEvent:
 
 
 async def record_inbound(session: AsyncSession, ev: ClassifiedEvent) -> None:
-    """پیام ورودی را در گفتگو ثبت می‌کند (باز کردن پنجره‌ی ۲۴ ساعته)."""
-    if ev.kind != "inbound_message" or not (ev.account_id and ev.ig_user_id):
+    """پیام را در گفتگو ثبت می‌کند.
+
+    ورودی ⇒ باز/تازه‌سازی پنجره‌ی ۲۴ ساعته (direction=in)؛
+    echo/پیام خودمان ⇒ فقط آرشیو (direction=out) و پنجره را دست نمی‌زند.
+    """
+    if ev.kind not in ("inbound_message", "echo_message") or not (ev.account_id and ev.ig_user_id):
         return
     conv = (
         await session.execute(
@@ -107,13 +126,20 @@ async def record_inbound(session: AsyncSession, ev: ClassifiedEvent) -> None:
             account_id=ev.account_id,
             ig_user_id=ev.ig_user_id,
             state="open",
-            window_expires_at=at + dt.timedelta(hours=24),
+            # پنجره فقط با پیام ورودی باز می‌شود — echo هرگز
+            window_expires_at=at + dt.timedelta(hours=24) if ev.kind == "inbound_message" else None,
         )
         session.add(conv)
         await session.flush()
-    else:
+    elif ev.kind == "inbound_message":
         conv.state = "open"
         conv.window_expires_at = at + dt.timedelta(hours=24)
     session.add(
-        Message(conversation_id=conv.id, direction="in", text=ev.text, mid=ev.mid, sent_at=at)
+        Message(
+            conversation_id=conv.id,
+            direction="in" if ev.kind == "inbound_message" else "out",
+            text=ev.text,
+            mid=ev.mid,
+            sent_at=at,
+        )
     )

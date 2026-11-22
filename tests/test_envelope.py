@@ -61,7 +61,8 @@ def test_envelope_multi_items_and_echo():
     )
     events = classify_events(payload)
     assert [e.kind for e in events] == ["inbound_message", "echo_message"]
-    assert events[1].ig_user_id == "page-1"
+    # معناشناسی ig_user_id = «کاربر مقابل»؛ در echo = گیرنده (نه فرستنده‌ی صفحه)
+    assert events[1].ig_user_id == "u1"
 
 
 def test_envelope_postback_title():
@@ -99,6 +100,29 @@ def test_flat_shape_still_supported():
     ev = classify_events(payload)[0]
     assert ev.kind == "inbound_message"
     assert ev.ig_user_id == "u1"
+
+
+def test_message_echoes_type_classified_as_echo():
+    """نوعِ واقعی message_echoes (تجربه‌ی هاست ۱۴۰۵/۰۹/۰۵): همه echo اند؛
+    طرف مقابل = گیرنده، نه صفحه."""
+    payload = {
+        "event_id": "client_ig_3",
+        "event_type": "message_echoes",
+        "account_id": "acc-1",
+        "data": {
+            "messaging": [
+                {
+                    "sender": {"id": "page-1"},
+                    "recipient": {"id": "u1"},
+                    "message": {"mid": "m9", "text": "سلام! پیام شما ثبت شد"},
+                }
+            ]
+        },
+    }
+    events = classify_events(payload)
+    assert events[0].kind == "echo_message"
+    assert events[0].ig_user_id == "u1"
+    assert events[0].text == "سلام! پیام شما ثبت شد"
 
 
 def test_signature_with_sha256_prefix_accepted():

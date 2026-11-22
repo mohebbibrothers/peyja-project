@@ -77,3 +77,45 @@ def test_record_inbound_opens_conversation():
         await engine.dispose()
 
     asyncio.run(run())
+
+
+def test_record_echo_archives_out_without_touching_window():
+    """echo/پیام خودمان: آرشیو direction=out — پنجره‌ی ۲۴ ساعته دست نمی‌خورد."""
+
+    async def run():
+        engine = create_async_engine("sqlite+aiosqlite://")
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        factory = async_sessionmaker(engine, expire_on_commit=False)
+        async with factory() as session:
+            inbound = ClassifiedEvent(
+                kind="inbound_message",
+                account_id="acc-1",
+                ig_user_id="user-9",
+                text="سلام",
+                mid="m1",
+            )
+            await record_inbound(session, inbound)
+            from peyja.models import Conversation, Message
+
+            before = (await session.execute(Conversation.__table__.select())).one()
+
+            echo = ClassifiedEvent(
+                kind="echo_message",
+                account_id="acc-1",
+                ig_user_id="user-9",
+                text="سلام! پیام شما ثبت شد",
+                mid="m2",
+            )
+            await record_inbound(session, echo)
+            await session.commit()
+
+            convs = (await session.execute(Conversation.__table__.select())).all()
+            msgs = (await session.execute(Message.__table__.select())).all()
+            assert len(convs) == 1
+            assert convs[0].window_expires_at == before.window_expires_at  # دست‌نخورده
+            assert len(msgs) == 2
+            assert msgs[1].direction == "out"
+        await engine.dispose()
+
+    asyncio.run(run())
