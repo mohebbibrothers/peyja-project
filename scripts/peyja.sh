@@ -22,4 +22,4 @@ for act in "${PEYJA_VENV:-}" \
 done
 
 cd "$REPO_ROOT"   # مهم: دیتابیس/داده‌ها نسبی‌اند؛ اجرا باید از ریشه‌ی اپ باشد
-exec python -m apps.cli.main "$@"
+exec python -m peyja "$@"   # ورودی واحد: packages/peyja/__main__.py → apps.cli.main
