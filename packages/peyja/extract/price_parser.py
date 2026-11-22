@@ -110,7 +110,9 @@ def _bare_pattern() -> re.Pattern:
 
     نگهبانِ پسوند واحد («250mil») مانعِ خواندنِ حجم/وزن به‌جای قیمت می‌شود.
     """
-    return re.compile(r"(?<![\d/.,])(?P<num>\d{3,12})(?![\d/.,%]|(?:mil|ml|cc|kg|گرم|میل)\b)")
+    return re.compile(
+        r"(?<![\d/.,])(?P<num>\d{3,12})(?![\d/.,%]|(?:mil|ml|cc|kg|گرم|میل)\b)"
+    )
 
 
 def parse_price_fa(text: str) -> PriceParseResult:
@@ -151,7 +153,11 @@ def parse_price_fa(text: str) -> PriceParseResult:
             )
             candidates.append(
                 PriceCandidate(
-                    new_v, m_pair.group("new"), "current", 0.95, ["قیمت تخفیف‌خورده (فرم صریح)"]
+                    new_v,
+                    m_pair.group("new"),
+                    "current",
+                    0.95,
+                    ["قیمت تخفیف‌خورده (فرم صریح)"],
                 )
             )
             discount_spans += [
@@ -161,7 +167,8 @@ def parse_price_fa(text: str) -> PriceParseResult:
             explicit_discount = True
     else:
         m_single = re.search(
-            r"(?:تخفیف|حراج|sale|off)[^0-9۰-۹]{0,8}از\s*(?P<old>\d[\d,/.\s]{0,12}\d|\d)", t
+            r"(?:تخفیف|حراج|sale|off)[^0-9۰-۹]{0,8}از\s*(?P<old>\d[\d,/.\s]{0,12}\d|\d)",
+            t,
         )
         if m_single:
             old_v = _quick_value(m_single.group("old"))
@@ -180,12 +187,15 @@ def parse_price_fa(text: str) -> PriceParseResult:
 
     # الگو ۴: «۴ میلیون و ۸۰۰» (بدون ممیز)
     for m in re.finditer(
-        r"(?P<int>\d{1,3})\s*(?:میلیون|میل)\s*(?:و|&)\s*(?P<thou>\d{1,3})\s*(?:هزار|هـ)?", t
+        r"(?P<int>\d{1,3})\s*(?:میلیون|میل)\s*(?:و|&)\s*(?P<thou>\d{1,3})\s*(?:هزار|هـ)?",
+        t,
     ):
         if _overlaps(m, discount_spans):
             continue
         val = _to_int(m.group("int")) * 1_000_000 + _to_int(m.group("thou")) * 1_000
-        candidates.append(PriceCandidate(val, m.group(0), "current", 0.95, ["فرم «میلیون و هزار»"]))
+        candidates.append(
+            PriceCandidate(val, m.group(0), "current", 0.95, ["فرم «میلیون و هزار»"])
+        )
 
     # الگوی ممیزی: «۴/۸۰» «۴/۸۰۰» «۴.۸ میلیون»
     for m in _million_pattern().finditer(t):
@@ -207,10 +217,14 @@ def parse_price_fa(text: str) -> PriceParseResult:
             if not unit and val < 1_000_000:
                 # ممیز بدون واحد و مقدار کوچک — احتمالاً اشتباه تایپی؛ اعتماد کم
                 candidates.append(
-                    PriceCandidate(val, m.group(0), "current", 0.55, [note, "بدون واحد"])
+                    PriceCandidate(
+                        val, m.group(0), "current", 0.55, [note, "بدون واحد"]
+                    )
                 )
             else:
-                candidates.append(PriceCandidate(val, m.group(0), "current", 0.95, [note]))
+                candidates.append(
+                    PriceCandidate(val, m.group(0), "current", 0.95, [note])
+                )
 
     # الگوی ساده با واحد: «۴۸۰ هزار تومان» «۲٬۵۰۰٬۰۰۰ تومان» «۴ میلیون تومان»
     for m in _plain_with_unit_pattern().finditer(t):
@@ -228,7 +242,9 @@ def parse_price_fa(text: str) -> PriceParseResult:
             val = num  # «۲٬۵۰۰٬۰۰۰ تومان» — عدد بزرگ خودش تومان است
         else:
             val = num * 1_000  # «۴۸۰ تومان» در فارکس فروشندگان = ۴۸۰ هزار
-        candidates.append(PriceCandidate(val, m.group(0), "current", 0.9, ["با واحد صریح"]))
+        candidates.append(
+            PriceCandidate(val, m.group(0), "current", 0.9, ["با واحد صریح"])
+        )
 
     # اعداد برهنه (بدون واحد) — فقط وقتی هنوز کاندیدایی نداریم یا عدد بزرگ است
     covered = {c.raw_text for c in candidates}
@@ -251,7 +267,9 @@ def parse_price_fa(text: str) -> PriceParseResult:
             val, note, conf = num, "عدد ۶رقمی = تومان", 0.85
         else:  # ۳رقمی مثل ۴۸۰: هزار تومان
             val, note, conf = num * 1_000, "عدد ۳رقمی = هزار تومان", 0.8
-        candidates.append(PriceCandidate(val, raw, "current", conf, [note, "بدون واحد"]))
+        candidates.append(
+            PriceCandidate(val, raw, "current", conf, [note, "بدون واحد"])
+        )
 
     # حدس خط‌خورده (بدون فرم صریح): دو عدد با بافت «تخفیف» — فقط با عقل سلیم اندازه (اختلاف حداکثر ۲۰ برابر)
     discount_ctx = re.search(r"تخفیف|حراج|off|%", t)

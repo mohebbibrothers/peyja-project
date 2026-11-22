@@ -51,7 +51,8 @@ def verify_boxapi_signature(
     current = now if now is not None else time.time()
     if abs(current - ts) > tolerance_seconds:
         return WebhookVerification(
-            False, f"تایم‌استمپ خارج از پنجره‌ی {tolerance_seconds} ثانیه‌ای (احتمال replay)"
+            False,
+            f"تایم‌استمپ خارج از پنجره‌ی {tolerance_seconds} ثانیه‌ای (احتمال replay)",
         )
 
     message = f"{timestamp_header}.".encode() + raw_body
@@ -67,11 +68,15 @@ def verify_boxapi_signature(
     return WebhookVerification(False, "امضا نامعتبر")
 
 
-def sign_payload(secret: str, raw_body: bytes, timestamp: int | None = None) -> tuple[str, str]:
+def sign_payload(
+    secret: str, raw_body: bytes, timestamp: int | None = None
+) -> tuple[str, str]:
     """امضای سازگار با BoxAPI: HMAC_SHA256(secret, "{timestamp}.{raw_body}").
 
     برای self-test حلقه استفاده می‌شود؛ تأییدکننده هر دو شکل کلید (با/بدون whsec_) را می‌پذیرد.
     """
     ts = str(int(timestamp if timestamp is not None else time.time()))
-    sig = hmac.new(secret.encode(), f"{ts}.".encode() + raw_body, hashlib.sha256).hexdigest()
+    sig = hmac.new(
+        secret.encode(), f"{ts}.".encode() + raw_body, hashlib.sha256
+    ).hexdigest()
     return ts, sig

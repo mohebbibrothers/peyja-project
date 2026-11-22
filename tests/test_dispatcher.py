@@ -41,7 +41,9 @@ def test_classify_echo_message():
 
 
 def test_classify_action_result():
-    ev = classify_event({"event_type": "action.send_message", "account_id": "acc-1", "data": {}})
+    ev = classify_event(
+        {"event_type": "action.send_message", "account_id": "acc-1", "data": {}}
+    )
     assert ev.kind == "action_result"
 
 

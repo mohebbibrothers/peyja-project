@@ -15,7 +15,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from peyja.models import Conversation, Message, utcnow
 
-EventKind = Literal["inbound_message", "echo_message", "comment", "action_result", "unknown"]
+EventKind = Literal[
+    "inbound_message", "echo_message", "comment", "action_result", "unknown"
+]
 
 
 @dataclass
@@ -84,13 +86,22 @@ def classify_events(payload: dict[str, Any]) -> list[ClassifiedEvent]:
     if event_type.startswith("action."):
         return [ClassifiedEvent("action_result", account_id, raw=payload)]
 
-    if event_type in ("messaging", "message", "messaging_postbacks", "echo", "message_echoes"):
+    if event_type in (
+        "messaging",
+        "message",
+        "messaging_postbacks",
+        "echo",
+        "message_echoes",
+    ):
         # message_echoes = نوعِ جداگانه‌ی echo در واقعیت (پیام‌های خودمان) — همه echo اند
         force_echo = event_type in ("echo", "message_echoes")
         items = data.get("messaging")
         if not isinstance(items, list):
             items = [data]
-        return [_classify_item(account_id, item, payload, force_echo=force_echo) for item in items]
+        return [
+            _classify_item(account_id, item, payload, force_echo=force_echo)
+            for item in items
+        ]
 
     if event_type in ("comments", "mentions"):
         return [ClassifiedEvent("comment", account_id, raw=payload)]
@@ -110,7 +121,9 @@ async def record_inbound(session: AsyncSession, ev: ClassifiedEvent) -> None:
     ورودی ⇒ باز/تازه‌سازی پنجره‌ی ۲۴ ساعته (direction=in)؛
     echo/پیام خودمان ⇒ فقط آرشیو (direction=out) و پنجره را دست نمی‌زند.
     """
-    if ev.kind not in ("inbound_message", "echo_message") or not (ev.account_id and ev.ig_user_id):
+    if ev.kind not in ("inbound_message", "echo_message") or not (
+        ev.account_id and ev.ig_user_id
+    ):
         return
     conv = (
         await session.execute(
@@ -127,7 +140,9 @@ async def record_inbound(session: AsyncSession, ev: ClassifiedEvent) -> None:
             ig_user_id=ev.ig_user_id,
             state="open",
             # پنجره فقط با پیام ورودی باز می‌شود — echo هرگز
-            window_expires_at=at + dt.timedelta(hours=24) if ev.kind == "inbound_message" else None,
+            window_expires_at=(
+                at + dt.timedelta(hours=24) if ev.kind == "inbound_message" else None
+            ),
         )
         session.add(conv)
         await session.flush()

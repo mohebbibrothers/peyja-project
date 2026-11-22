@@ -27,12 +27,30 @@ def test_price_tolerance_2pct() -> None:
 
 def test_score_gates_and_synthetic_split() -> None:
     gold: list[dict[str, Any]] = [
-        {"id": "g1", "price_toman": 100, "category": "makeup", "colors": ["قرمز"], "sizes": []},
+        {
+            "id": "g1",
+            "price_toman": 100,
+            "category": "makeup",
+            "colors": ["قرمز"],
+            "sizes": [],
+        },
         {"id": "g2", "price_toman": None, "category": None, "colors": [], "sizes": []},
-        {"id": "g3", "price_toman": 100, "category": "skincare", "colors": [], "sizes": [], "synthetic": True},
+        {
+            "id": "g3",
+            "price_toman": 100,
+            "category": "skincare",
+            "colors": [],
+            "sizes": [],
+            "synthetic": True,
+        },
     ]
     preds: dict[str, dict[str, Any]] = {
-        "g1": {"price_toman": 100, "category": "makeup", "colors": ["قرمز"], "sizes": []},
+        "g1": {
+            "price_toman": 100,
+            "category": "makeup",
+            "colors": ["قرمز"],
+            "sizes": [],
+        },
         "g2": {"price_toman": None, "category": None, "colors": [], "sizes": []},
         "g3": {"price_toman": 101, "category": "skincare", "colors": [], "sizes": []},
     }
@@ -49,8 +67,12 @@ def test_score_gates_and_synthetic_split() -> None:
 
 
 def test_score_empty_gold_attrs_not_penalized() -> None:
-    gold: list[dict[str, Any]] = [{"id": "g1", "price_toman": None, "category": None, "colors": [], "sizes": []}]
-    preds: dict[str, dict[str, Any]] = {"g1": {"price_toman": None, "category": None, "colors": [], "sizes": []}}
+    gold: list[dict[str, Any]] = [
+        {"id": "g1", "price_toman": None, "category": None, "colors": [], "sizes": []}
+    ]
+    preds: dict[str, dict[str, Any]] = {
+        "g1": {"price_toman": None, "category": None, "colors": [], "sizes": []}
+    }
     r = score(gold, preds)
     assert r["attribute_labeled"] == 0
     assert r["gate_attribute_pass"] is True  # بدون نمونه‌ی برچسب‌دار = بدون گیت
@@ -60,19 +82,33 @@ def test_validate_gold_catches_problems() -> None:
     bad: list[dict[str, Any]] = [
         {"id": "a", "caption": "", "price_toman": 50},  # کپشن خالی + قیمت نامعتبر
         {"id": "a", "caption": "x", "category": "bogus"},  # id تکراری + دسته ناشناخته
-        {"id": "b", "caption": "x", "price_toman": 200, "old_price_toman": 100},  # old < price
+        {
+            "id": "b",
+            "caption": "x",
+            "price_toman": 200,
+            "old_price_toman": 100,
+        },  # old < price
     ]
     issues = validate_gold(bad)
     assert any("تکراری" in i for i in issues)
     assert any("کپشن خالی" in i for i in issues)
     assert any("قیمت قدیم" in i for i in issues)
     assert any("ناشناخته" in i for i in issues)
-    assert validate_gold([{"id": "ok", "caption": "سلام", "price_toman": 480_000}]) == []
+    assert (
+        validate_gold([{"id": "ok", "caption": "سلام", "price_toman": 480_000}]) == []
+    )
 
 
 def test_verification_sheet_renders_rows() -> None:
     sheet = render_verification_sheet(
-        [{"id": "g1", "caption": "کرم | ضد آفتاب", "price_toman": 480_000, "category": "skincare"}]
+        [
+            {
+                "id": "g1",
+                "caption": "کرم | ضد آفتاب",
+                "price_toman": 480_000,
+                "category": "skincare",
+            }
+        ]
     )
     assert "g1" in sheet
     assert "480000" in sheet

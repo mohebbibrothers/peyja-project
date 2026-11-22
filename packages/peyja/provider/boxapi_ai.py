@@ -28,8 +28,15 @@ class BoxApiAiProvider:
         self, messages: list[dict[str, Any]], model: str | None = None, **kwargs: Any
     ) -> str:
         settings = get_settings()
-        payload = {"model": model or settings.extract_vlm_model, "messages": messages, **kwargs}
-        headers = {"Authorization": f"Bearer {self._token}", "Content-Type": "application/json"}
+        payload = {
+            "model": model or settings.extract_vlm_model,
+            "messages": messages,
+            **kwargs,
+        }
+        headers = {
+            "Authorization": f"Bearer {self._token}",
+            "Content-Type": "application/json",
+        }
         resp = await self._client.post(
             f"{self._base_url}/ai/v1/chat/completions", headers=headers, json=payload
         )
@@ -43,16 +50,23 @@ class BoxApiAiProvider:
         """تحلیل تصویر با VLM — data URI داخلی (بدون وابستگی به URL منقضی‌شونده)."""
         raw = Path(image_path).read_bytes()
         ext = Path(image_path).suffix.lstrip(".").lower() or "jpg"
-        mime = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "webp": "webp", "gif": "gif"}.get(
-            ext, "jpeg"
-        )
+        mime = {
+            "jpg": "jpeg",
+            "jpeg": "jpeg",
+            "png": "png",
+            "webp": "webp",
+            "gif": "gif",
+        }.get(ext, "jpeg")
         b64 = base64.b64encode(raw).decode()
         messages = [
             {
                 "role": "user",
                 "content": [
                     {"type": "text", "text": prompt},
-                    {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{b64}"}},
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/{mime};base64,{b64}"},
+                    },
                 ],
             }
         ]
@@ -65,7 +79,8 @@ class BoxApiAiProvider:
         import json
 
         text = await self.chat(
-            [{"role": "system", "content": system}, {"role": "user", "content": user}], model=model
+            [{"role": "system", "content": system}, {"role": "user", "content": user}],
+            model=model,
         )
         # پاک‌سازی حصارهای کد احتمالی
         t = text.strip()

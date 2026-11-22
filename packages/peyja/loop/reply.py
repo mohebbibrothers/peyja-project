@@ -51,14 +51,18 @@ async def send_auto_reply(reply: AutoReply) -> bool:
     provider = BoxApiOfficialProvider()
     try:
         log.info(
-            "🤖 تلاش ارسال پاسخ خودکار → %s (account=%s)", reply.recipient_id, reply.account_id
+            "🤖 تلاش ارسال پاسخ خودکار → %s (account=%s)",
+            reply.recipient_id,
+            reply.account_id,
         )
         result = await provider.send_message(
             account_id=reply.account_id,
             recipient_id=reply.recipient_id,
             message=reply.message,
         )
-        log.info("پاسخ خودکار ارسال شد → %s (%s)", reply.recipient_id, result.get("accepted"))
+        log.info(
+            "پاسخ خودکار ارسال شد → %s (%s)", reply.recipient_id, result.get("accepted")
+        )
         return True
     except Exception as e:
         log.warning("ارسال پاسخ خودکار ناموفق: %s", e)

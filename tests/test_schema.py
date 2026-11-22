@@ -12,7 +12,9 @@ def test_failure_mode_requires_reason():
 
 
 def test_failure_mode_valid():
-    r = SafeProductExtraction(extraction_successful=False, failure_reason="کپشن خالی است")
+    r = SafeProductExtraction(
+        extraction_successful=False, failure_reason="کپشن خالی است"
+    )
     assert not r.extraction_successful
 
 

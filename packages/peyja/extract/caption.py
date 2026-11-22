@@ -39,10 +39,29 @@ SIZE_PATTERN = re.compile(
 )
 VOLUME_SUFFIX_PATTERN = re.compile(r"(?<![\d/.,])(\d{1,4})\s*(?:میل|ml|mil)\b")
 LATIN_TONES = [
-    "berry", "burgundy", "nude", "rose", "peach", "coral", "mauve", "plum", "mocha", "wine",
+    "berry",
+    "burgundy",
+    "nude",
+    "rose",
+    "peach",
+    "coral",
+    "mauve",
+    "plum",
+    "mocha",
+    "wine",
 ]
 COLOR_PATTERN = re.compile("|".join(COLOR_WORDS + LATIN_TONES))
-MATERIAL_WORDS = ["چرم", "جیر", "نبوک", "پارچه‌ای", "کتان", "فلزی", "استیل", "پلاستیکی", "ضدآب"]
+MATERIAL_WORDS = [
+    "چرم",
+    "جیر",
+    "نبوک",
+    "پارچه‌ای",
+    "کتان",
+    "فلزی",
+    "استیل",
+    "پلاستیکی",
+    "ضدآب",
+]
 
 
 @dataclass

@@ -8,7 +8,9 @@ TEXT = "سلام! پیام شما دریافت شد."
 
 
 def test_auto_reply_built_for_inbound_message():
-    ev = ClassifiedEvent("inbound_message", account_id="acc-1", ig_user_id="user-9", text="سلام")
+    ev = ClassifiedEvent(
+        "inbound_message", account_id="acc-1", ig_user_id="user-9", text="سلام"
+    )
     reply = build_auto_reply(ev, auto_reply_text=TEXT)
     assert reply is not None
     assert reply.account_id == "acc-1"
@@ -23,7 +25,9 @@ def test_no_auto_reply_for_echo_unknown_or_empty_text():
     unknown = ClassifiedEvent("unknown", account_id="acc-1", ig_user_id="user-9")
     assert build_auto_reply(unknown, auto_reply_text=TEXT) is None
 
-    inbound = ClassifiedEvent("inbound_message", account_id="acc-1", ig_user_id="user-9")
+    inbound = ClassifiedEvent(
+        "inbound_message", account_id="acc-1", ig_user_id="user-9"
+    )
     assert build_auto_reply(inbound, auto_reply_text="") is None
 
 

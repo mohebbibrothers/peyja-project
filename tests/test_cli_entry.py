@@ -17,7 +17,9 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def _run(args: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     env = dict(os.environ)
     pp = os.pathsep.join([str(REPO_ROOT / "packages"), str(REPO_ROOT)])
-    env["PYTHONPATH"] = pp + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    env["PYTHONPATH"] = pp + (
+        os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+    )
     return subprocess.run(
         [sys.executable, "-m", "peyja", *args],
         cwd=cwd,
@@ -51,7 +53,9 @@ def test_peyja_sh_wrapper_invokes_same_entry(tmp_path: Path) -> None:
     wrapper = REPO_ROOT / "scripts" / "peyja.sh"
     env = dict(os.environ)
     pp = os.pathsep.join([str(REPO_ROOT / "packages"), str(REPO_ROOT)])
-    env["PYTHONPATH"] = pp + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+    env["PYTHONPATH"] = pp + (
+        os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else ""
+    )
     env["PEYJA_VENV"] = ""  # از venv محیطی استفاده نکن
     r = subprocess.run(
         ["bash", str(wrapper), "--help"],

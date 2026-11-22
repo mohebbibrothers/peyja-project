@@ -47,8 +47,12 @@ class Page(Base):
     username: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     ig_user_id: Mapped[str | None] = mapped_column(String(32), index=True)
     source: Mapped[str] = mapped_column(String(16), default="data")  # data | official
-    account_id: Mapped[str | None] = mapped_column(String(64))  # UUID پیج متصل (BoxAPI official)
-    sync_cursor: Mapped[dict[str, Any] | None] = mapped_column(JSONType)  # {"next_max_id": ...}
+    account_id: Mapped[str | None] = mapped_column(
+        String(64)
+    )  # UUID پیج متصل (BoxAPI official)
+    sync_cursor: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONType
+    )  # {"next_max_id": ...}
     last_synced_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
     raw_items: Mapped[list[RawItem]] = relationship(
@@ -63,14 +67,22 @@ class RawItem(Base):
     """آرشیو خام هر چیزی که از API آمده — منبع حقیقت اولیه برای reprocessing."""
 
     __tablename__ = "raw_items"
-    __table_args__ = (UniqueConstraint("page_id", "kind", "ig_id", name="uq_raw_identity"),)
+    __table_args__ = (
+        UniqueConstraint("page_id", "kind", "ig_id", name="uq_raw_identity"),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    page_id: Mapped[int] = mapped_column(ForeignKey("pages.id", ondelete="CASCADE"), index=True)
-    kind: Mapped[str] = mapped_column(String(16))  # media | comment | profile | highlight | story
+    page_id: Mapped[int] = mapped_column(
+        ForeignKey("pages.id", ondelete="CASCADE"), index=True
+    )
+    kind: Mapped[str] = mapped_column(
+        String(16)
+    )  # media | comment | profile | highlight | story
     ig_id: Mapped[str] = mapped_column(String(40), index=True)
     raw: Mapped[dict[str, Any]] = mapped_column(JSONType)
-    fetched_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    fetched_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
     page: Mapped[Page] = relationship(back_populates="raw_items")
     media_files: Mapped[list[MediaFile]] = relationship(
@@ -90,7 +102,9 @@ class MediaFile(Base):
     url_original: Mapped[str] = mapped_column(Text)
     sha256: Mapped[str] = mapped_column(String(64), index=True)
     local_path: Mapped[str] = mapped_column(Text)
-    downloaded_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    downloaded_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
     raw_item: Mapped[RawItem] = relationship(back_populates="media_files")
 
@@ -105,17 +119,23 @@ class CaptionVersion(Base):
         ForeignKey("raw_items.id", ondelete="CASCADE"), index=True
     )
     caption_text: Mapped[str | None] = mapped_column(Text)
-    captured_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    captured_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
 
 class Product(Base):
     __tablename__ = "products"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    page_id: Mapped[int] = mapped_column(ForeignKey("pages.id", ondelete="CASCADE"), index=True)
+    page_id: Mapped[int] = mapped_column(
+        ForeignKey("pages.id", ondelete="CASCADE"), index=True
+    )
     title_fa: Mapped[str] = mapped_column(Text)
     category: Mapped[str | None] = mapped_column(String(64))
-    attributes: Mapped[dict[str, Any] | None] = mapped_column(JSONType)  # رنگ/سایز/جنس/...
+    attributes: Mapped[dict[str, Any] | None] = mapped_column(
+        JSONType
+    )  # رنگ/سایز/جنس/...
     status: Mapped[str] = mapped_column(
         String(16), default="candidate"
     )  # candidate|confirmed|rejected
@@ -158,7 +178,9 @@ class Offer(Base):
     stock_state: Mapped[str] = mapped_column(
         String(16), default="unknown"
     )  # in_stock|out_of_stock|on_request|unknown
-    valid_from: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    valid_from: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
     ttl_hours: Mapped[int] = mapped_column(Integer, default=24)
     stale: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -180,11 +202,15 @@ class Evidence(Base):
     product_id: Mapped[int | None] = mapped_column(
         ForeignKey("products.id", ondelete="CASCADE"), index=True
     )
-    source_type: Mapped[str] = mapped_column(String(24))  # caption|ocr|vlm|seller_echo|comment
+    source_type: Mapped[str] = mapped_column(
+        String(24)
+    )  # caption|ocr|vlm|seller_echo|comment
     source_id: Mapped[str | None] = mapped_column(String(64))  # ig_id مرجع
     method: Mapped[str] = mapped_column(String(48))
     confidence: Mapped[float] = mapped_column(Float, default=0.5)
-    extracted_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    extracted_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
     verified_by: Mapped[str | None] = mapped_column(String(64))
     verified_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -195,7 +221,9 @@ class ExtractionRun(Base):
     __tablename__ = "extraction_runs"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    page_id: Mapped[int] = mapped_column(ForeignKey("pages.id", ondelete="CASCADE"), index=True)
+    page_id: Mapped[int] = mapped_column(
+        ForeignKey("pages.id", ondelete="CASCADE"), index=True
+    )
     pipeline_version: Mapped[str] = mapped_column(String(32))
     stats: Mapped[dict[str, Any] | None] = mapped_column(JSONType)
     finished_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
@@ -226,7 +254,9 @@ class WebhookEvent(Base):
     account_id: Mapped[str | None] = mapped_column(String(64), index=True)
     event_type: Mapped[str] = mapped_column(String(48))
     payload: Mapped[dict[str, Any]] = mapped_column(JSONType)
-    received_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    received_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
     processed_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
 
 
@@ -237,7 +267,9 @@ class Conversation(Base):
     account_id: Mapped[str] = mapped_column(String(64), index=True)
     ig_user_id: Mapped[str] = mapped_column(String(32), index=True)
     state: Mapped[str] = mapped_column(String(16), default="open")
-    window_expires_at: Mapped[dt.datetime | None] = mapped_column(DateTime(timezone=True))
+    window_expires_at: Mapped[dt.datetime | None] = mapped_column(
+        DateTime(timezone=True)
+    )
 
     messages: Mapped[list[Message]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan"
@@ -254,6 +286,8 @@ class Message(Base):
     direction: Mapped[str] = mapped_column(String(8))  # in|out
     text: Mapped[str | None] = mapped_column(Text)
     mid: Mapped[str | None] = mapped_column(String(64), index=True)
-    sent_at: Mapped[dt.datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    sent_at: Mapped[dt.datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow
+    )
 
     conversation: Mapped[Conversation] = relationship(back_populates="messages")

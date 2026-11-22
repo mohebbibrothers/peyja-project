@@ -61,7 +61,11 @@ class BoxApiOfficialProvider:
         body = resp.json()
         if resp.status_code == 202 and body.get("success"):
             d = body.get("data") or {}
-            return {"accepted": True, "action": d.get("action"), "event_id": d.get("event_id")}
+            return {
+                "accepted": True,
+                "action": d.get("action"),
+                "event_id": d.get("event_id"),
+            }
         if body.get("success"):
             return body.get("data") or {}
         raise OfficialApiError(
@@ -71,12 +75,15 @@ class BoxApiOfficialProvider:
         )
 
     async def _get(self, path: str) -> Any:
-        resp = await self._client.get(f"{self._base_url}{path}", headers=self._headers())
+        resp = await self._client.get(
+            f"{self._base_url}{path}", headers=self._headers()
+        )
         body = resp.json()
         if body.get("success"):
             return body.get("data")
         raise OfficialApiError(
-            body.get("status_code", resp.status_code), body.get("message", str(body)[:300])
+            body.get("status_code", resp.status_code),
+            body.get("message", str(body)[:300]),
         )
 
     # ----- اکانت‌ها -----
@@ -91,7 +98,11 @@ class BoxApiOfficialProvider:
     ) -> dict[str, Any]:
         return await self._action(
             "send_message",
-            {"account_id": account_id, "recipient_id": recipient_id, "message": message},
+            {
+                "account_id": account_id,
+                "recipient_id": recipient_id,
+                "message": message,
+            },
         )
 
     async def send_attachment(
@@ -99,7 +110,11 @@ class BoxApiOfficialProvider:
     ) -> dict[str, Any]:
         return await self._action(
             "send_attachment",
-            {"account_id": account_id, "recipient_id": recipient_id, "attachment": attachment},
+            {
+                "account_id": account_id,
+                "recipient_id": recipient_id,
+                "attachment": attachment,
+            },
         )
 
     async def send_generic_template(
@@ -108,22 +123,32 @@ class BoxApiOfficialProvider:
         """کارت محصول — «گالری قیمت‌دار» اینستاگرام در قلب معماری کاتالوگ."""
         return await self._action(
             "send_generic_template",
-            {"account_id": account_id, "recipient_id": recipient_id, "elements": elements},
+            {
+                "account_id": account_id,
+                "recipient_id": recipient_id,
+                "elements": elements,
+            },
         )
 
     # ----- کامنت -----
-    async def reply_comment(self, account_id: str, comment_id: str, message: str) -> dict[str, Any]:
+    async def reply_comment(
+        self, account_id: str, comment_id: str, message: str
+    ) -> dict[str, Any]:
         return await self._action(
             "reply_comment",
             {"account_id": account_id, "comment_id": comment_id, "message": message},
         )
 
-    async def get_post_comments(self, account_id: str, ig_media_id: str) -> dict[str, Any]:
+    async def get_post_comments(
+        self, account_id: str, ig_media_id: str
+    ) -> dict[str, Any]:
         return await self._action(
             "get-post-comments", {"account_id": account_id, "media_id": ig_media_id}
         )
 
-    async def private_reply(self, account_id: str, comment_id: str, message: str) -> dict[str, Any]:
+    async def private_reply(
+        self, account_id: str, comment_id: str, message: str
+    ) -> dict[str, Any]:
         """تبدیل کامنت عمومی به DM — «کانال اینباکس مخفی»."""
         return await self._action(
             "private_reply",
@@ -141,7 +166,9 @@ class BoxApiOfficialProvider:
 
     # ----- رفتارنگاری / پست -----
     async def follow_status(self, account_id: str, user_id: str) -> dict[str, Any]:
-        return await self._action("follow-status", {"account_id": account_id, "user_id": user_id})
+        return await self._action(
+            "follow-status", {"account_id": account_id, "user_id": user_id}
+        )
 
     async def list_posts(self, account_id: str) -> dict[str, Any]:
         """پست‌های پیج متصل (async ⇒ نتیجه از وب‌هوک action.list_posts)."""

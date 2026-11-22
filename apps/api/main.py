@@ -46,7 +46,9 @@ app.include_router(callback_router)  # بازگشت پس از ورود رسمی 
 
 # مسیرهای سازگار با تنظیمات رایج داشبورد
 app.add_api_route("/webhook", boxapi_webhook, methods=["POST"], include_in_schema=False)
-app.add_api_route("/webhook/", boxapi_webhook_health, methods=["GET"], include_in_schema=False)
+app.add_api_route(
+    "/webhook/", boxapi_webhook_health, methods=["GET"], include_in_schema=False
+)
 
 
 @app.get("/health")

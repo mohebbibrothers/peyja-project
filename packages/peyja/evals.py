@@ -39,7 +39,9 @@ def price_within_tolerance(
     return abs(gold_price - pred_price) / max(gold_price, 1) <= tol
 
 
-def _score_subset(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def _score_subset(
+    items: list[dict[str, Any]], preds: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
     n = len(items)
     price_em = price_tol = cat_ok = attr_ok = 0
     n_attr = 0
@@ -55,7 +57,9 @@ def _score_subset(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]])
         if price_within_tolerance(g_price, p_price):
             price_tol += 1
         else:
-            errors.append({"id": key, "type": "price", "gold": g_price, "pred": p_price})
+            errors.append(
+                {"id": key, "type": "price", "gold": g_price, "pred": p_price}
+            )
 
         if (sample.get("category") or "") == (pred.get("category") or ""):
             cat_ok += 1
@@ -99,7 +103,9 @@ def _score_subset(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]])
     }
 
 
-def score(gold: list[dict[str, Any]], preds: dict[str, dict[str, Any]]) -> dict[str, Any]:
+def score(
+    gold: list[dict[str, Any]], preds: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
     """نمره‌ی کل + تفکیک مصنوعی/واقعی (اگر نمونه‌های synthetic علامت‌خورده باشند)."""
     result = _score_subset(gold, preds)
     synthetic = [s for s in gold if s.get("synthetic")]
@@ -126,7 +132,9 @@ def validate_gold(samples: list[dict[str, Any]]) -> list[str]:
             issues.append(f"{sid}: کپشن خالی")
         for f in ("price_toman", "old_price_toman"):
             v = s.get(f)
-            if v is not None and (not isinstance(v, int) or not (1_000 <= v <= 5_000_000_000)):
+            if v is not None and (
+                not isinstance(v, int) or not (1_000 <= v <= 5_000_000_000)
+            ):
                 issues.append(f"{sid}: {f}={v} خارج از بازه‌ی معقول")
         if (
             s.get("price_toman") is not None

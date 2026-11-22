@@ -18,7 +18,9 @@ app = typer.Typer(help="Peyja — Supply-Side OS · Data Spine CLI", add_complet
 
 
 @app.command()
-def crawl(username: str, max_media: int = typer.Option(60, help="حداکثر تعداد رسانه")) -> None:
+def crawl(
+    username: str, max_media: int = typer.Option(60, help="حداکثر تعداد رسانه")
+) -> None:
     """کرال یک پیج عمومی + آرشیو خام."""
     asyncio.run(_crawl(username, max_media))
 
@@ -62,7 +64,9 @@ async def _extract(page_id: int) -> None:
 
 
 @app.command()
-def build(username: str, out: Path = typer.Option(Path("out"), help="پوشه‌ی خروجی")) -> None:
+def build(
+    username: str, out: Path = typer.Option(Path("out"), help="پوشه‌ی خروجی")
+) -> None:
     """فرمان نمایشی: «کاتالوگ بساز» — crawl + extract + products.json + گزارش فروشنده."""
     asyncio.run(_build(username, out))
 
@@ -89,7 +93,9 @@ async def _build(username: str, out: Path) -> None:
         crawl_stats = await crawler.crawl_page(username)
         pipeline = ExtractionPipeline(session)
         extract_stats = await pipeline.run_for_page(
-            (await session.execute(select(Page).where(Page.username == username))).scalar_one().id
+            (await session.execute(select(Page).where(Page.username == username)))
+            .scalar_one()
+            .id
         )
         await session.commit()
 
@@ -98,14 +104,22 @@ async def _build(username: str, out: Path) -> None:
         catalog = []
         for p in products:
             variants = (
-                (await session.execute(select(Variant).where(Variant.product_id == p.id)))
+                (
+                    await session.execute(
+                        select(Variant).where(Variant.product_id == p.id)
+                    )
+                )
                 .scalars()
                 .all()
             )
             var_out = []
             for v in variants:
                 offers = (
-                    (await session.execute(select(Offer).where(Offer.variant_id == v.id)))
+                    (
+                        await session.execute(
+                            select(Offer).where(Offer.variant_id == v.id)
+                        )
+                    )
                     .scalars()
                     .all()
                 )
@@ -145,7 +159,9 @@ async def _build(username: str, out: Path) -> None:
     )
 
 
-def _seller_report(username: str, crawl: dict, extract: dict, catalog: list, elapsed: float) -> str:
+def _seller_report(
+    username: str, crawl: dict, extract: dict, catalog: list, elapsed: float
+) -> str:
     confirmed = sum(1 for p in catalog if p["status"] == "confirmed")
     low = extract.get("low_confidence", 0)
     lines = [
@@ -175,7 +191,9 @@ def _seller_report(username: str, crawl: dict, extract: dict, catalog: list, ela
 
 @app.command("extract-text")
 def extract_text(
-    input: Path = typer.Argument(..., help='فایل JSON کپشن‌ها: [{"id":..., "caption":...}]'),
+    input: Path = typer.Argument(
+        ..., help='فایل JSON کپشن‌ها: [{"id":..., "caption":...}]'
+    ),
     out: Path = typer.Option(Path("out/predictions.json"), help="خروجی پیش‌بینی‌ها"),
 ) -> None:
     """استخراج آفلاین از کپشن‌های متنی — «عدد سرنوشت» بدون نیاز به Data API."""
@@ -218,9 +236,11 @@ async def _doctor() -> None:
         (
             "WEBHOOK_SECRET تنظیم شده",
             bool(settings.boxapi_webhook_secret),
-            settings.boxapi_webhook_secret[:10] + "..."
-            if settings.boxapi_webhook_secret
-            else "خالی",
+            (
+                settings.boxapi_webhook_secret[:10] + "..."
+                if settings.boxapi_webhook_secret
+                else "خالی"
+            ),
         )
     )
 
@@ -259,9 +279,11 @@ async def _doctor() -> None:
         (
             "توکن Data API",
             bool(settings.boxapi_data_token),
-            settings.boxapi_data_token[:8] + "..."
-            if settings.boxapi_data_token
-            else "خالی (برای کرال عمومی لازم است)",
+            (
+                settings.boxapi_data_token[:8] + "..."
+                if settings.boxapi_data_token
+                else "خالی (برای کرال عمومی لازم است)"
+            ),
         )
     )
 
@@ -273,7 +295,9 @@ async def _doctor() -> None:
 
     import httpx as _httpx
 
-    web_host = (settings.app_url or settings.boxapi_domain or "").split("//")[-1].split("/")[0]
+    web_host = (
+        (settings.app_url or settings.boxapi_domain or "").split("//")[-1].split("/")[0]
+    )
     try:
         with _socket.socket(_socket.AF_INET, _socket.SOCK_DGRAM) as s:
             s.connect(("8.8.8.8", 80))
@@ -308,15 +332,19 @@ async def _doctor() -> None:
     # ── DNS دامنه: آیا نام عمومی به IP همین سرور اشاره می‌کند؟ ──
     if web_host and server_ip:
         try:
-            addrs = sorted({str(item[4][0]) for item in _socket.getaddrinfo(web_host, None)})
+            addrs = sorted(
+                {str(item[4][0]) for item in _socket.getaddrinfo(web_host, None)}
+            )
             ok = server_ip in addrs
             checks.append(
                 (
                     f"DNS · {web_host}",
                     ok,
-                    f"→ {', '.join(addrs)} ✓"
-                    if ok
-                    else f"→ {', '.join(addrs) or 'بدون رکورد'} — باید {server_ip} باشد (Zone Editor → A record)",
+                    (
+                        f"→ {', '.join(addrs)} ✓"
+                        if ok
+                        else f"→ {', '.join(addrs) or 'بدون رکورد'} — باید {server_ip} باشد (Zone Editor → A record)"
+                    ),
                 )
             )
         except OSError:
@@ -334,7 +362,11 @@ async def _doctor() -> None:
 
     try:
         remote_ts: float | None = None
-        for url in ("https://boxapi.ir", "https://www.google.com", "http://www.google.com"):
+        for url in (
+            "https://boxapi.ir",
+            "https://www.google.com",
+            "http://www.google.com",
+        ):
             try:
                 async with _httpx.AsyncClient(timeout=12, follow_redirects=True) as c:
                     r = await c.get(url)
@@ -345,11 +377,15 @@ async def _doctor() -> None:
             except Exception:
                 continue
         if remote_ts is None:
-            checks.append(("ساعت سرور", False, "عدم امکان سنجش (هیچ سرور زمانی پاسخ نداد)"))
+            checks.append(
+                ("ساعت سرور", False, "عدم امکان سنجش (هیچ سرور زمانی پاسخ نداد)")
+            )
         else:
             skew = _time.time() - remote_ts
             if abs(skew) <= 300:
-                checks.append(("ساعت سرور", True, f"انحراف {skew:.0f} ثانیه — در محدوده‌ی امن"))
+                checks.append(
+                    ("ساعت سرور", True, f"انحراف {skew:.0f} ثانیه — در محدوده‌ی امن")
+                )
             else:
                 checks.append(
                     (
@@ -360,7 +396,9 @@ async def _doctor() -> None:
                     )
                 )
     except Exception as e:
-        checks.append(("ساعت سرور", False, f"عدم امکان سنجش: {str(e) or type(e).__name__}"))
+        checks.append(
+            ("ساعت سرور", False, f"عدم امکان سنجش: {str(e) or type(e).__name__}")
+        )
 
     width = max(len(c[0]) for c in checks)
     for name, ok, detail in checks:
@@ -380,7 +418,9 @@ def selftest_webhook(
     host: str = typer.Option(
         "", "--host", help="هدر Host برای آزمون با IP (مثلاً kaveh185.n-cpanel.xyz)"
     ),
-    sender: str = typer.Option("selftest-user", "--sender", help="شناسه‌ی فرستنده‌ی شبیه‌سازی‌شده"),
+    sender: str = typer.Option(
+        "selftest-user", "--sender", help="شناسه‌ی فرستنده‌ی شبیه‌سازی‌شده"
+    ),
 ) -> None:
     """آزمون سرتاسری حلقه‌ی وب‌هوک: امضای HMAC + POST واقعی + گزارش ثبت در دیتابیس."""
     asyncio.run(_selftest_webhook(url, host, sender))
@@ -451,7 +491,9 @@ async def _selftest_webhook(url: str, host: str, sender: str) -> None:
     factory = get_session_factory()
     async with factory() as session:
         ev = (
-            await session.execute(select(WebhookEvent).where(WebhookEvent.event_id == event_id))
+            await session.execute(
+                select(WebhookEvent).where(WebhookEvent.event_id == event_id)
+            )
         ).scalar_one_or_none()
         msg = (
             await session.execute(select(Message).where(Message.mid == event_id))
@@ -485,7 +527,9 @@ async def _events(limit: int) -> None:
         evs = (
             (
                 await session.execute(
-                    select(WebhookEvent).order_by(WebhookEvent.received_at.desc()).limit(limit)
+                    select(WebhookEvent)
+                    .order_by(WebhookEvent.received_at.desc())
+                    .limit(limit)
                 )
             )
             .scalars()
@@ -525,14 +569,18 @@ async def _events(limit: int) -> None:
         )
     typer.echo(f"— آخرین {len(msgs)} پیام —")
     for m in msgs:
-        typer.echo(f"  [{m.direction}] {m.sent_at}  mid={m.mid}  «{(m.text or '')[:60]}»")
+        typer.echo(
+            f"  [{m.direction}] {m.sent_at}  mid={m.mid}  «{(m.text or '')[:60]}»"
+        )
 
 
 @app.command("send-message")
 def send_message_cmd(
     to: str = typer.Option(..., "--to", help="شناسه‌ی اینستاگرامی گیرنده (ig user id)"),
     text: str = typer.Option(..., "--text", help="متن پیام"),
-    account_id: str = typer.Option("", "--account-id", help="UUID پیج — خالی = اولین اکانت"),
+    account_id: str = typer.Option(
+        "", "--account-id", help="UUID پیج — خالی = اولین اکانت"
+    ),
 ) -> None:
     """ارسال مستقیم تستی — مسیر «فرستادن» را بدون وب‌هوک محک می‌زند (ابزار دیباگ)."""
     asyncio.run(_send_message_cmd(to, text, account_id))
@@ -550,7 +598,9 @@ async def _send_message_cmd(to: str, text: str, account_id: str) -> None:
                 raise typer.Exit(code=1)
             first = accounts[0]
             account_id = str(first.get("id") or first.get("account_id") or "")
-            typer.echo(f"→ account_id (خودکار): {account_id}  ({first.get('username', '?')})")
+            typer.echo(
+                f"→ account_id (خودکار): {account_id}  ({first.get('username', '?')})"
+            )
         typer.echo(f"→ POST send_message  to={to}  «{text}»")
         result = await provider.send_message(account_id, to, text)
         typer.echo(f"✅ پذیرفته و در صف رفت: {json.dumps(result, ensure_ascii=False)}")
@@ -563,9 +613,13 @@ async def _send_message_cmd(to: str, text: str, account_id: str) -> None:
 
 @app.command("gold-sheet")
 def gold_sheet(
-    gold: Path = typer.Option(Path("evals/gold-100/samples.json"), "--gold", help="فایل نمونه‌های طلایی"),
+    gold: Path = typer.Option(
+        Path("evals/gold-100/samples.json"), "--gold", help="فایل نمونه‌های طلایی"
+    ),
     out: Path = typer.Option(
-        Path("evals/gold-100/verification-sheet.md"), "--out", help="برگه‌ی تأیید انسانی"
+        Path("evals/gold-100/verification-sheet.md"),
+        "--out",
+        help="برگه‌ی تأیید انسانی",
     ),
 ) -> None:
     """اعتبارسنجی مجموعه‌ی طلایی + ساخت برگه‌ی تأیید انسانی («یک نفر چک کند»)."""
