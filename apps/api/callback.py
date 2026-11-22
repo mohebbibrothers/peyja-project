@@ -39,9 +39,7 @@ def record_callback(params: dict[str, Any], path: Path) -> None:
     """ثبت خام پارامترهای بازگشت — خطاهای ذخیره‌سازی هرگز صفحه را نمی‌شکنند."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
-        fh.write(
-            json.dumps({"ts": time.time(), "params": params}, ensure_ascii=False) + "\n"
-        )
+        fh.write(json.dumps({"ts": time.time(), "params": params}, ensure_ascii=False) + "\n")
 
 
 def default_record_path() -> Path:

@@ -85,9 +85,7 @@ async def boxapi_webhook(
     try:
         payload = await request.json()
     except ValueError:
-        raise HTTPException(
-            status_code=400, detail="بدنه باید JSON معتبر باشد"
-        ) from None
+        raise HTTPException(status_code=400, detail="بدنه باید JSON معتبر باشد") from None
     event_type = str(payload.get("event_type", "unknown"))
 
     # event_id طبق داک: هدر X-BoxApi-Event-Id یا فیلد event_id بدنه (که همیشه می‌آید)
@@ -104,9 +102,7 @@ async def boxapi_webhook(
     factory = get_session_factory()
     async with factory() as session:
         existing = (
-            await session.execute(
-                select(WebhookEvent).where(WebhookEvent.event_id == event_id)
-            )
+            await session.execute(select(WebhookEvent).where(WebhookEvent.event_id == event_id))
         ).scalar_one_or_none()
         if existing:
             return {"status": "duplicate"}

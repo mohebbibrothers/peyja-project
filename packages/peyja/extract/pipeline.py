@@ -166,20 +166,15 @@ class ExtractionPipeline:
         vlm: SafeProductExtraction | None = None
         vlm_calls = 0
         need_vlm = self.ai is not None and (
-            regex_price is None
-            or regex_price.confidence < self.settings.extract_confidence_tau
+            regex_price is None or regex_price.confidence < self.settings.extract_confidence_tau
         )
         if need_vlm:
             vlm_calls = 1
             vlm = await self._vlm_extract_safe(item, caption_text)
 
-        price_toman, method, confidence = _merge_price(
-            regex_price, vlm, signals.prices.on_request
-        )
+        price_toman, method, confidence = _merge_price(regex_price, vlm, signals.prices.on_request)
 
-        title = (vlm.title_fa if vlm and vlm.title_fa else None) or _derive_title(
-            caption_text
-        )
+        title = (vlm.title_fa if vlm and vlm.title_fa else None) or _derive_title(caption_text)
         category = (vlm.category if vlm and vlm.category else None) or _guess_category(
             caption_text + " " + " ".join(signals.hashtags)
         )
@@ -189,15 +184,11 @@ class ExtractionPipeline:
         stock_state = (
             "on_request"
             if signals.prices.on_request
-            else (
-                "in_stock" if price_toman else (vlm.stock_state if vlm else "unknown")
-            )
+            else ("in_stock" if price_toman else (vlm.stock_state if vlm else "unknown"))
         )
 
         route = route_by_confidence(confidence, self.settings.extract_review_floor)
-        status = {"store": "confirmed", "review": "candidate", "reject": "rejected"}[
-            route
-        ]
+        status = {"store": "confirmed", "review": "candidate", "reject": "rejected"}[route]
 
         stats = {
             "products": 0,
@@ -207,9 +198,7 @@ class ExtractionPipeline:
             "human_review": 0,
             "rejected": 0,
         }
-        stats[
-            {"store": "stored", "review": "human_review", "reject": "rejected"}[route]
-        ] += 1
+        stats[{"store": "stored", "review": "human_review", "reject": "rejected"}[route]] += 1
 
         product = Product(
             page_id=page_id,
@@ -274,23 +263,15 @@ class ExtractionPipeline:
     def extract_signals_fa(caption_text: str) -> dict[str, Any]:
         """استخراج خالص متنی (بدون DB/VLM/API) — موتور gold-100 آفلاین."""
         signals = analyze_caption(caption_text)
-        price, method, conf = _merge_price(
-            signals.prices.current, None, signals.prices.on_request
-        )
+        price, method, conf = _merge_price(signals.prices.current, None, signals.prices.on_request)
         return {
             "price_toman": price,
-            "old_price_toman": (
-                signals.prices.old.value_toman if signals.prices.old else None
-            ),
-            "category": _guess_category(
-                caption_text + " " + " ".join(signals.hashtags)
-            ),
+            "old_price_toman": (signals.prices.old.value_toman if signals.prices.old else None),
+            "category": _guess_category(caption_text + " " + " ".join(signals.hashtags)),
             "colors": signals.colors,
             "sizes": signals.sizes,
             "stock_state": (
-                "on_request"
-                if signals.prices.on_request
-                else ("in_stock" if price else "unknown")
+                "on_request" if signals.prices.on_request else ("in_stock" if price else "unknown")
             ),
             "confidence": conf,
             "method": method,
@@ -348,11 +329,7 @@ def _merge_price(
     on_request: bool,
 ) -> tuple[int | None, str, float]:
     """ترکیب قیمت regex و VLM — regex پرقدرت اولویت دارد، seller_echo همیشه برنده."""
-    if (
-        regex_price is not None
-        and regex_price.confidence >= 0.8
-        and regex_price.value_toman
-    ):
+    if regex_price is not None and regex_price.confidence >= 0.8 and regex_price.value_toman:
         # «توافقی/دایرکت» بر حدسِ بدون واحد مقدم است («حجم ۴۰۰» هرگز قیمت نیست)
         if on_request and regex_price.confidence < 0.9:
             return None, "on_request", 0.9
@@ -402,9 +379,7 @@ def _key_hits(folded: str, key: str) -> int:
             after
             and _LETTER_RE.match(after)
             and not (after[0] == "ه" and (len(after) == 1 or after[1] in "ای "))
-            and not (
-                after[0] == "ی" and (len(after) == 1 or not _LETTER_RE.match(after[1]))
-            )
+            and not (after[0] == "ی" and (len(after) == 1 or not _LETTER_RE.match(after[1])))
         ):
             continue
         n += 1

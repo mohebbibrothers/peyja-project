@@ -75,9 +75,7 @@ class BoxApiOfficialProvider:
         )
 
     async def _get(self, path: str) -> Any:
-        resp = await self._client.get(
-            f"{self._base_url}{path}", headers=self._headers()
-        )
+        resp = await self._client.get(f"{self._base_url}{path}", headers=self._headers())
         body = resp.json()
         if body.get("success"):
             return body.get("data")
@@ -131,24 +129,18 @@ class BoxApiOfficialProvider:
         )
 
     # ----- کامنت -----
-    async def reply_comment(
-        self, account_id: str, comment_id: str, message: str
-    ) -> dict[str, Any]:
+    async def reply_comment(self, account_id: str, comment_id: str, message: str) -> dict[str, Any]:
         return await self._action(
             "reply_comment",
             {"account_id": account_id, "comment_id": comment_id, "message": message},
         )
 
-    async def get_post_comments(
-        self, account_id: str, ig_media_id: str
-    ) -> dict[str, Any]:
+    async def get_post_comments(self, account_id: str, ig_media_id: str) -> dict[str, Any]:
         return await self._action(
             "get-post-comments", {"account_id": account_id, "media_id": ig_media_id}
         )
 
-    async def private_reply(
-        self, account_id: str, comment_id: str, message: str
-    ) -> dict[str, Any]:
+    async def private_reply(self, account_id: str, comment_id: str, message: str) -> dict[str, Any]:
         """تبدیل کامنت عمومی به DM — «کانال اینباکس مخفی»."""
         return await self._action(
             "private_reply",
@@ -166,9 +158,7 @@ class BoxApiOfficialProvider:
 
     # ----- رفتارنگاری / پست -----
     async def follow_status(self, account_id: str, user_id: str) -> dict[str, Any]:
-        return await self._action(
-            "follow-status", {"account_id": account_id, "user_id": user_id}
-        )
+        return await self._action("follow-status", {"account_id": account_id, "user_id": user_id})
 
     async def list_posts(self, account_id: str) -> dict[str, Any]:
         """پست‌های پیج متصل (async ⇒ نتیجه از وب‌هوک action.list_posts)."""

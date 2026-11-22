@@ -25,9 +25,7 @@ def _provider_with_capture(response: dict, status_code: int):
         captured["headers"] = dict(request.headers)
         return httpx.Response(status_code, json=response)
 
-    provider = BoxApiOfficialProvider(
-        api_key="k-test", base_url="https://x.test/api/v1"
-    )
+    provider = BoxApiOfficialProvider(api_key="k-test", base_url="https://x.test/api/v1")
     provider._client = httpx.AsyncClient(transport=httpx.MockTransport(handler))
     return provider, captured
 

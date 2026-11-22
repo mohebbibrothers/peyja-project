@@ -60,9 +60,7 @@ async def send_auto_reply(reply: AutoReply) -> bool:
             recipient_id=reply.recipient_id,
             message=reply.message,
         )
-        log.info(
-            "پاسخ خودکار ارسال شد → %s (%s)", reply.recipient_id, result.get("accepted")
-        )
+        log.info("پاسخ خودکار ارسال شد → %s (%s)", reply.recipient_id, result.get("accepted"))
         return True
     except Exception as e:
         log.warning("ارسال پاسخ خودکار ناموفق: %s", e)

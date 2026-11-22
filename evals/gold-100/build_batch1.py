@@ -730,9 +730,7 @@ def main() -> None:
     if len(LABELS) != len(rows):
         raise SystemExit(f"تعداد برچسب‌ها ({len(LABELS)}) ≠ رسانه‌ها ({len(rows)})")
 
-    OUT_PATH.write_text(
-        json.dumps(samples, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    OUT_PATH.write_text(json.dumps(samples, ensure_ascii=False, indent=2), encoding="utf-8")
     priced = sum(1 for s in samples if s["price_toman"] is not None)
     print(f"✅ {len(samples)} نمونه → {OUT_PATH}")
     print(f"   دارای قیمت: {priced} | بدون قیمت: {len(samples) - priced}")

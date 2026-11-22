@@ -26,12 +26,8 @@ def test_extract_signals_fa_discount():
 
 def test_extract_signals_fa_cosmetics_categories():
     assert ExtractionPipeline.extract_signals_fa("فوندیشن مات")["category"] == "makeup"
-    assert (
-        ExtractionPipeline.extract_signals_fa("شامپو ضد ریزش")["category"] == "haircare"
-    )
-    assert (
-        ExtractionPipeline.extract_signals_fa("سرم ویتامین C")["category"] == "skincare"
-    )
+    assert ExtractionPipeline.extract_signals_fa("شامپو ضد ریزش")["category"] == "haircare"
+    assert ExtractionPipeline.extract_signals_fa("سرم ویتامین C")["category"] == "skincare"
 
 
 def test_million_slash_two_digits():

@@ -47,9 +47,7 @@ def test_replay_window_rejected():
     result = verify_boxapi_signature(SECRET, raw, sig, old_ts)
     assert not result.ok
     assert (
-        "بازپخش" in result.reason
-        or "replay" in result.reason.lower()
-        or "پنجره" in result.reason
+        "بازپخش" in result.reason or "replay" in result.reason.lower() or "پنجره" in result.reason
     )
 
 

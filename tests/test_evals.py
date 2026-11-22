@@ -94,9 +94,7 @@ def test_validate_gold_catches_problems() -> None:
     assert any("کپشن خالی" in i for i in issues)
     assert any("قیمت قدیم" in i for i in issues)
     assert any("ناشناخته" in i for i in issues)
-    assert (
-        validate_gold([{"id": "ok", "caption": "سلام", "price_toman": 480_000}]) == []
-    )
+    assert validate_gold([{"id": "ok", "caption": "سلام", "price_toman": 480_000}]) == []
 
 
 def test_verification_sheet_renders_rows() -> None:

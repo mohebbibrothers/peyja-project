@@ -29,36 +29,26 @@ class SafeProductExtraction(BaseModel):
         default=True,
         description="آیا استخراج موفق بود؟ اگر اطلاعات کافی نیست false بگذار",
     )
-    failure_reason: str | None = Field(
-        default=None, description="در صورت شکست، دلیل کوتاه"
-    )
+    failure_reason: str | None = Field(default=None, description="در صورت شکست، دلیل کوتاه")
     title_fa: str | None = Field(default=None, description="عنوان کوتاه فارسی محصول")
     category: Category | None = Field(default=None, description="دسته‌ی محصول")
     brand: str | None = Field(default=None, description="برند (فارسی یا لاتین)")
     colors: list[str] = Field(default_factory=list, description="رنگ‌ها/شیدها")
     sizes: list[str] = Field(default_factory=list, description="سایزها/حجم‌ها")
-    volume_ml: float | None = Field(
-        default=None, description="حجم به میلی‌لیتر اگر ذکر شده"
-    )
+    volume_ml: float | None = Field(default=None, description="حجم به میلی‌لیتر اگر ذکر شده")
     spf: int | None = Field(default=None, description="ضدآفتاب: SPF اگر ذکر شده")
     price_toman: int | None = Field(
         default=None, description="قیمت فعلی به تومان کامل (مثلا 4800000)"
     )
-    old_price_toman: int | None = Field(
-        default=None, description="قیمت قبل از تخفیف به تومان"
-    )
+    old_price_toman: int | None = Field(default=None, description="قیمت قبل از تخفیف به تومان")
     stock_state: StockState = Field(default="unknown", description="وضعیت موجودی")
-    confidence: float = Field(
-        default=0.0, ge=0.0, le=1.0, description="اطمینان مدل بین ۰ تا ۱"
-    )
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0, description="اطمینان مدل بین ۰ تا ۱")
 
     @model_validator(mode="after")
     def _business_rules(self) -> SafeProductExtraction:
         if not self.extraction_successful:
             if not self.failure_reason:
-                raise ValueError(
-                    "اگر extraction_successful نیست، failure_reason الزامی است"
-                )
+                raise ValueError("اگر extraction_successful نیست، failure_reason الزامی است")
             return self
         for label, v in (
             ("price_toman", self.price_toman),

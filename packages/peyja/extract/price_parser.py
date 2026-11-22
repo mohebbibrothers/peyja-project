@@ -110,9 +110,7 @@ def _bare_pattern() -> re.Pattern:
 
     نگهبانِ پسوند واحد («250mil») مانعِ خواندنِ حجم/وزن به‌جای قیمت می‌شود.
     """
-    return re.compile(
-        r"(?<![\d/.,])(?P<num>\d{3,12})(?![\d/.,%]|(?:mil|ml|cc|kg|گرم|میل)\b)"
-    )
+    return re.compile(r"(?<![\d/.,])(?P<num>\d{3,12})(?![\d/.,%]|(?:mil|ml|cc|kg|گرم|میل)\b)")
 
 
 def parse_price_fa(text: str) -> PriceParseResult:
@@ -193,9 +191,7 @@ def parse_price_fa(text: str) -> PriceParseResult:
         if _overlaps(m, discount_spans):
             continue
         val = _to_int(m.group("int")) * 1_000_000 + _to_int(m.group("thou")) * 1_000
-        candidates.append(
-            PriceCandidate(val, m.group(0), "current", 0.95, ["فرم «میلیون و هزار»"])
-        )
+        candidates.append(PriceCandidate(val, m.group(0), "current", 0.95, ["فرم «میلیون و هزار»"]))
 
     # الگوی ممیزی: «۴/۸۰» «۴/۸۰۰» «۴.۸ میلیون»
     for m in _million_pattern().finditer(t):
@@ -217,14 +213,10 @@ def parse_price_fa(text: str) -> PriceParseResult:
             if not unit and val < 1_000_000:
                 # ممیز بدون واحد و مقدار کوچک — احتمالاً اشتباه تایپی؛ اعتماد کم
                 candidates.append(
-                    PriceCandidate(
-                        val, m.group(0), "current", 0.55, [note, "بدون واحد"]
-                    )
+                    PriceCandidate(val, m.group(0), "current", 0.55, [note, "بدون واحد"])
                 )
             else:
-                candidates.append(
-                    PriceCandidate(val, m.group(0), "current", 0.95, [note])
-                )
+                candidates.append(PriceCandidate(val, m.group(0), "current", 0.95, [note]))
 
     # الگوی ساده با واحد: «۴۸۰ هزار تومان» «۲٬۵۰۰٬۰۰۰ تومان» «۴ میلیون تومان»
     for m in _plain_with_unit_pattern().finditer(t):
@@ -242,9 +234,7 @@ def parse_price_fa(text: str) -> PriceParseResult:
             val = num  # «۲٬۵۰۰٬۰۰۰ تومان» — عدد بزرگ خودش تومان است
         else:
             val = num * 1_000  # «۴۸۰ تومان» در فارکس فروشندگان = ۴۸۰ هزار
-        candidates.append(
-            PriceCandidate(val, m.group(0), "current", 0.9, ["با واحد صریح"])
-        )
+        candidates.append(PriceCandidate(val, m.group(0), "current", 0.9, ["با واحد صریح"]))
 
     # اعداد برهنه (بدون واحد) — فقط وقتی هنوز کاندیدایی نداریم یا عدد بزرگ است
     covered = {c.raw_text for c in candidates}
@@ -267,9 +257,7 @@ def parse_price_fa(text: str) -> PriceParseResult:
             val, note, conf = num, "عدد ۶رقمی = تومان", 0.85
         else:  # ۳رقمی مثل ۴۸۰: هزار تومان
             val, note, conf = num * 1_000, "عدد ۳رقمی = هزار تومان", 0.8
-        candidates.append(
-            PriceCandidate(val, raw, "current", conf, [note, "بدون واحد"])
-        )
+        candidates.append(PriceCandidate(val, raw, "current", conf, [note, "بدون واحد"]))
 
     # حدس خط‌خورده (بدون فرم صریح): دو عدد با بافت «تخفیف» — فقط با عقل سلیم اندازه (اختلاف حداکثر ۲۰ برابر)
     discount_ctx = re.search(r"تخفیف|حراج|off|%", t)

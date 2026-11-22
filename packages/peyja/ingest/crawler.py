@@ -29,9 +29,7 @@ class CrawlBudgetGuard:
     def consume(self, n: int = 1) -> None:
         self.used += n
         if self.used > self.max_requests:
-            raise BudgetExceeded(
-                f"بودجه‌ی کرال تمام شد ({self.used}/{self.max_requests})"
-            )
+            raise BudgetExceeded(f"بودجه‌ی کرال تمام شد ({self.used}/{self.max_requests})")
 
     @property
     def remaining(self) -> int:
@@ -57,14 +55,10 @@ class Crawler:
         profile = await self.provider.get_user_by_username(username)
 
         page = (
-            await self.session.execute(
-                select(Page).where(Page.username == profile.username)
-            )
+            await self.session.execute(select(Page).where(Page.username == profile.username))
         ).scalar_one_or_none()
         if page is None:
-            page = Page(
-                username=profile.username, ig_user_id=profile.ig_user_id, source="data"
-            )
+            page = Page(username=profile.username, ig_user_id=profile.ig_user_id, source="data")
             self.session.add(page)
             await self.session.flush()
 
@@ -84,13 +78,9 @@ class Crawler:
                     page.ig_user_id or "", count=12, max_id=cursor
                 )
                 for m in media_page:
-                    raw_item = await self._archive(
-                        page.id, "media", m.ig_media_id, m.raw
-                    )
+                    raw_item = await self._archive(page.id, "media", m.ig_media_id, m.raw)
                     if archiver and raw_item is not None and downloads < max_downloads:
-                        saved = await archiver.archive_urls(
-                            raw_item, media_urls_from_raw(m.raw)
-                        )
+                        saved = await archiver.archive_urls(raw_item, media_urls_from_raw(m.raw))
                         downloads += len(saved)
                     fetched += 1
                 cursor = next_cursor

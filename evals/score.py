@@ -29,9 +29,7 @@ def main() -> None:
     ap.add_argument("--pred", required=True)
     args = ap.parse_args()
     gold = json.loads(Path(args.gold).read_text(encoding="utf-8"))
-    preds = {
-        p["id"]: p for p in json.loads(Path(args.pred).read_text(encoding="utf-8"))
-    }
+    preds = {p["id"]: p for p in json.loads(Path(args.pred).read_text(encoding="utf-8"))}
     result = score(gold, preds)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 

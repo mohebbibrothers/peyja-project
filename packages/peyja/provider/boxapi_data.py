@@ -32,9 +32,7 @@ def _is_transient(exc: BaseException) -> bool:
 class RateLimiter:
     """محدودکننده‌ی نرخ ساده‌ی توکنی (N درخواست در ثانیه)."""
 
-    def __init__(
-        self, rate_per_sec: float = 9.0
-    ):  # کمی پایین‌تر از سقف ۱۰ (حاشیه ایمنی)
+    def __init__(self, rate_per_sec: float = 9.0):  # کمی پایین‌تر از سقف ۱۰ (حاشیه ایمنی)
         self._interval = 1.0 / rate_per_sec
         self._lock = asyncio.Lock()
         self._next_at = 0.0
@@ -62,9 +60,7 @@ class BoxApiDataProvider:
         await self._client.aclose()
 
     # ----- هسته‌ی فراخوانی -----
-    async def _call(
-        self, category: str, action: str, params: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def _call(self, category: str, action: str, params: dict[str, Any]) -> dict[str, Any]:
         await self._limiter.acquire()
         url = f"{self._base_url}/api/instagram/{category}/{action}"
         headers = {
@@ -113,14 +109,8 @@ class BoxApiDataProvider:
         u = (self._body(data).get("data", {}) or {}).get("user", {}) or {}
         if not u:
             # fallback به اندپوینت اصلی
-            data = await self._call(
-                "user", "get_info_by_username", {"username": username}
-            )
-            u = (
-                self._body(data).get("user", {})
-                or self._body(data).get("data", {})
-                or {}
-            )
+            data = await self._call("user", "get_info_by_username", {"username": username})
+            u = self._body(data).get("user", {}) or self._body(data).get("data", {}) or {}
         return IgProfile(
             ig_user_id=str(u.get("pk") or u.get("id") or ""),
             username=u.get("username", username),
@@ -128,8 +118,7 @@ class BoxApiDataProvider:
             biography=u.get("biography"),
             follower_count=(u.get("edge_followed_by") or {}).get("count")
             or u.get("follower_count"),
-            following_count=(u.get("edge_follow") or {}).get("count")
-            or u.get("following_count"),
+            following_count=(u.get("edge_follow") or {}).get("count") or u.get("following_count"),
             media_count=(u.get("edge_owner_to_timeline_media") or {}).get("count")
             or u.get("media_count"),
             is_private=bool(u.get("is_private")),
@@ -165,9 +154,7 @@ class BoxApiDataProvider:
         )
         urls: list[str] = []
         if item.get("image_versions2", {}).get("candidates"):
-            urls = [
-                c["url"] for c in item["image_versions2"]["candidates"] if c.get("url")
-            ]
+            urls = [c["url"] for c in item["image_versions2"]["candidates"] if c.get("url")]
         if item.get("video_versions"):
             urls += [v["url"] for v in item["video_versions"] if v.get("url")]
         if item.get("media_url"):
@@ -175,11 +162,7 @@ class BoxApiDataProvider:
         carousel = item.get("carousel_media") or []
         for sub in carousel:
             if sub.get("image_versions2", {}).get("candidates"):
-                urls += [
-                    c["url"]
-                    for c in sub["image_versions2"]["candidates"]
-                    if c.get("url")
-                ]
+                urls += [c["url"] for c in sub["image_versions2"]["candidates"] if c.get("url")]
         caption = item.get("caption")
         if isinstance(caption, dict):
             caption = caption.get("text")
@@ -191,9 +174,7 @@ class BoxApiDataProvider:
             comment_count=item.get("comment_count"),
             view_count=item.get("view_count"),
             permalink=(
-                f"https://www.instagram.com/p/{item['code']}/"
-                if item.get("code")
-                else None
+                f"https://www.instagram.com/p/{item['code']}/" if item.get("code") else None
             ),
             media_urls=list(dict.fromkeys(urls)),  # حذف تکراری حفظ ترتیب
             taken_at=item.get("taken_at"),
@@ -212,9 +193,7 @@ class BoxApiDataProvider:
         items = body.get("items", []) or []
         return [self._normalize_media(it) for it in items], body.get("next_max_id")
 
-    async def get_media_by_username(
-        self, username: str, count: int = 12
-    ) -> list[IgMedia]:
+    async def get_media_by_username(self, username: str, count: int = 12) -> list[IgMedia]:
         data = await self._call(
             "user", "get_media_by_username", {"username": username, "count": count}
         )
@@ -224,11 +203,7 @@ class BoxApiDataProvider:
     # ----- Comments -----
     async def get_comments(self, ig_media_id: str) -> list[IgComment]:
         data = await self._call("media", "get_comments", {"id": ig_media_id})
-        comments = (
-            self._body(data).get("comments", [])
-            or self._body(data).get("items", [])
-            or []
-        )
+        comments = self._body(data).get("comments", []) or self._body(data).get("items", []) or []
         out: list[IgComment] = []
         for c in comments:
             user = c.get("user", {}) or {}
@@ -255,9 +230,7 @@ class BoxApiDataProvider:
         data = await self._call("user", "get_highlights", {"id": ig_user_id})
         return self._body(data).get("items", []) or []
 
-    async def get_highlight_stories(
-        self, highlight_ids: list[str]
-    ) -> list[dict[str, Any]]:
+    async def get_highlight_stories(self, highlight_ids: list[str]) -> list[dict[str, Any]]:
         data = await self._call("highlight", "get_stories", {"ids": highlight_ids})
         return self._body(data).get("items", []) or []
 

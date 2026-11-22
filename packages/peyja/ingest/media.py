@@ -63,9 +63,7 @@ class MediaArchiver:
     async def _archive_one(self, raw_item: RawItem, url: str) -> MediaFile | None:
         # اول جستجو در DB — از دانلود تکراری جلوگیری می‌شود
         existing_by_url = (
-            await self.session.execute(
-                select(MediaFile).where(MediaFile.url_original == url)
-            )
+            await self.session.execute(select(MediaFile).where(MediaFile.url_original == url))
         ).scalar_one_or_none()
         if existing_by_url:
             return existing_by_url
