@@ -128,6 +128,14 @@ cPanel هنگام «Create a New Domain» (حالت Registered Domain) بررس�
    با DCV از DNS (ثبت TXT روی همان سرور DNS) کار می‌کند — حتی اگر HTTP از خارج مسدود باشد.
 3. در production جلوی همه‌چیز **Cloudflare (رایگان)** بگذارید — دقیقاً الگوی خودِ سایت هاست (`nitrocpanel.ir`).
 
+## سناریوی هفتم: صفحه‌ی «428 Technical Domain» روی دامنه‌های موقت cpanel.site
+دامنه‌های موقت (`*.cpanel.site`) در مرورگر یک صفحه‌ی هشدار cPanel نشان می‌دهند
+(«این دامنه فنی است و هرگز برای سایت‌های زنده استفاده نمی‌شود»). رفع برای انسان:
+تیک «Dismiss this warning for 90 days» + دکمه‌ی **Continue** (URL و query حفظ می‌شود).
+نکته‌ی حیاتی: این هشدار مخصوص **مرورگرها** است؛ ترافیک سرور-به-سرور (curl / وب‌هوک BoxAPI)
+باید مستقیم به اپ برسد — با آزمون POST با امضای نادرست تأیید کنید (انتظار: JSON خطای ۴۰۱ اپ، نه HTML).
+برای production هرگز روی دامنه‌ی موقت نمانید ← دامنه‌ی اختصاصی + AutoSSL (سناریوی ۶).
+
 ## نکات معماری
 - Passenger فقط WSGI می‌فهمد ← `a2wsgi.ASGIMiddleware` در `passenger_wsgi.py` پل ASGI است.
 - دیتابیس: SQLite (فایل `data/app.db` داخل ریشه‌ی اپ) — مناسب هاست اشتراکی؛ بعداً Postgres.
