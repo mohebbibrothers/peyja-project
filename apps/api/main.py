@@ -6,6 +6,7 @@
 
 from fastapi import FastAPI
 
+from apps.api.callback import router as callback_router
 from apps.api.webhook import boxapi_webhook, boxapi_webhook_health
 from apps.api.webhook import router as webhook_router
 
@@ -16,6 +17,7 @@ app = FastAPI(
 )
 app.include_router(webhook_router, prefix="/webhooks")
 app.include_router(webhook_router, prefix="/webhook")  # alias
+app.include_router(callback_router)  # بازگشت پس از ورود رسمی اینستاگرام
 
 # مسیرهای سازگار با تنظیمات رایج داشبورد
 app.add_api_route("/webhook", boxapi_webhook, methods=["POST"], include_in_schema=False)
