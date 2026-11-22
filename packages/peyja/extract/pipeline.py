@@ -36,10 +36,55 @@ from peyja.provider.boxapi_ai import BoxApiAiProvider
 PIPELINE_VERSION = "spine-v0.2"
 
 VLM_SYSTEM_PROMPT = (
-    "تو استخراج‌گر داده از کپشن/تصویر فروشندگان ایرانی لوازم آرایشی بهداشتی هستی. "
-    "فقط و فقط JSON مطابق اسکیمای داده‌شده خروجی بده. "
-    "اگر اطلاعات کافی نیست extraction_successful را false بگذار و هرگز حدس نزن. "
-    "قیمت‌ها را به تومان کامل عددی بنویس (مثلا 4800000)."
+    "## نقش (Role)\n"
+    "تو «استخراج‌گرِ داده‌ی متخصصِ بازارِ لوازم آرایشی‌بهداشتی ایران» هستی؛ "
+    "سال‌ها کپشنِ فروشندگانِ اینستاگرام را خوانده‌ای و با قیمت‌گذاریِ تومانی، شیدها، "
+    "واژگانِ بومی («توافقی»، «دایرکت»، «۵۵۰💸») و دام‌های متنی آشنایی کامل داری.\n\n"
+    "## پروتکلِ استخراج (گام‌به‌گام — دقیقاً به همین ترتیب اجرا کن)\n"
+    "۱. قیمت فعلی: فقط عددی که واقعاً قیمت است. «حجم/وزن/ساعت/تعداد/SPF/شماره» هرگز قیمت نیستند.\n"
+    "۲. قیمت قبل از تخفیف (old) فقط با نشانه‌ی صریحِ «از X به Y» یا خط‌خوردگی.\n"
+    "۳. دسته: یکی از skincare | makeup | perfume | haircare | hygiene اگر غالب مشخص است.\n"
+    "۴. برند، رنگ‌ها/تناژها، شماره‌ی شید («شماره ۱۲» — نه رنگ نه سایز)، سایز/حجم، SPF.\n"
+    "۵. وضعیت موجودی: in_stock | out_of_stock | on_request | unknown.\n\n"
+    "## قواعدِ قیمتِ ایرانی (دانشِ بحرانی)\n"
+    "- «X/YY» = X میلیون و Y صدمِ میلیون ⇒ «۴/۸۰» = 4800000\n"
+    "- عددِ ۳رقمیِ بدونِ واحد = هزارتایی ⇒ «۵۵۰» یا «۵۵۰💸» = 550000\n"
+    "- «از ۹۰۰ به ۷۵۰» ⇒ old=900000 و price=750000\n"
+    "- «توافقی/دایرکت/تماس بگیرید» ⇒ price=null و stock_state=on_request\n\n"
+    "## دام‌ها (این‌ها را هرگز اشتباه نگیر)\n"
+    "- «حجم 250mil» ⇒ حجم است (volume_ml=250)، قیمت نیست.\n"
+    "- «۲۴ ساعت ماندگاری» ⇒ عددِ زمانی است، قیمت نیست.\n"
+    "- «شماره ۱۲» ⇒ شید است (shades)، نه قیمت و نه سایز.\n"
+    "- «پالت ۱۲ رنگ» ⇒ تعدادِ رنگ است، نه شید و نه قیمت.\n"
+    "- «قیمت مناسب/خوب» بدونِ عدد ⇒ قیمت وجود ندارد (حدس نزن!).\n\n"
+    "## نمونه‌ها (Few-shot)\n"
+    "ورودی: «ریمل اسنس موجود شد ۵۵۰💸»\n"
+    'خروجی: {"extraction_successful": true, "title_fa": "ریمل اسنس", '
+    '"category": "makeup", "brand": "اسنس", "price_toman": 550000, '
+    '"old_price_toman": null, "colors": [], "shades": [], "sizes": [], '
+    '"volume_ml": null, "spf": null, "stock_state": "in_stock", "confidence": 0.9}\n'
+    "ورودی: «کرم ضد آفتاب سان‌سل SPF50 حجم ۵۰ میل | قیمت ۴/۸۰»\n"
+    'خروجی: {"extraction_successful": true, "title_fa": "کرم ضد آفتاب سان‌سل", '
+    '"category": "skincare", "brand": "سان‌سل", "price_toman": 4800000, '
+    '"old_price_toman": null, "colors": [], "shades": [], "sizes": ["50"], '
+    '"volume_ml": 50, "spf": 50, "stock_state": "in_stock", "confidence": 0.9}\n'
+    "ورودی: «رژلب مات شماره ۱۲ | قیمت توافقی»\n"
+    'خروجی: {"extraction_successful": true, "title_fa": "رژلب مات", '
+    '"category": "makeup", "brand": null, "price_toman": null, '
+    '"old_price_toman": null, "colors": [], "shades": ["12"], "sizes": [], '
+    '"volume_ml": null, "spf": null, "stock_state": "on_request", "confidence": 0.85}\n\n'
+    "## قراردادِ خروجی (Output Contract)\n"
+    "- فقط و فقط یک شیءِ JSON مطابق اسکیمای داده‌شده؛ بدون هیچ متن، توضیح یا حصارِ کد.\n"
+    "- قیمت‌ها = عددِ صحیحِ تومانِ کامل (مثلا 4800000)؛ لیست‌ها خالی ولی هرگز null.\n"
+    "- اگر اطلاعات کافی نیست extraction_successful=false با دلیلِ کوتاه؛ «حدسِ مطمئن‌نشده» ممنوع.\n"
+    "- پیش از پاسخ، خروجی‌ات را با «دام‌ها» بالا دوباره بسنج (Self-check) و سپس JSON نهایی را بده."
+)
+
+VLM_RETRY_PROMPT = (
+    "خروجی قبلی نامعتبر بود.\n"
+    "دلیل: {reason}\n"
+    "اصلاح کن: فقط یک JSON سالم مطابق اسکیما بده — بدون متن اضافه، بدون حصار کد، "
+    "و فقط مقادیری که از متن مطمئنی (حدس نزن)."
 )
 
 # دسته‌بندی لوازم آرایشی بهداشتی (نیچ جدید پیجا)
@@ -180,6 +225,7 @@ class ExtractionPipeline:
         )
         brand = vlm.brand if vlm else None
         colors = (vlm.colors if vlm and vlm.colors else None) or signals.colors
+        shades = (vlm.shades if vlm and vlm.shades else None) or signals.shades
         sizes = (vlm.sizes if vlm and vlm.sizes else None) or signals.sizes
         stock_state = (
             "on_request"
@@ -207,6 +253,7 @@ class ExtractionPipeline:
             attributes={
                 "brand": brand,
                 "colors": colors,
+                "shades": shades,
                 "sizes": sizes,
                 "volume_ml": vlm.volume_ml if vlm else None,
                 "spf": vlm.spf if vlm else None,
@@ -269,6 +316,7 @@ class ExtractionPipeline:
             "old_price_toman": (signals.prices.old.value_toman if signals.prices.old else None),
             "category": _guess_category(caption_text + " " + " ".join(signals.hashtags)),
             "colors": signals.colors,
+            "shades": signals.shades,
             "sizes": signals.sizes,
             "stock_state": (
                 "on_request" if signals.prices.on_request else ("in_stock" if price else "unknown")
@@ -300,7 +348,7 @@ class ExtractionPipeline:
                 messages.append(
                     {
                         "role": "user",
-                        "content": f"خروجی قبلی نامعتبر بود:\n{e}\nاصلاح کن و فقط JSON بده.",
+                        "content": VLM_RETRY_PROMPT.format(reason=str(e)[:500]),
                     }
                 )
                 continue

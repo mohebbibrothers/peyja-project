@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass, field
 
 # ---------- نرمال‌سازی ارقام ----------
@@ -60,8 +61,12 @@ class PriceParseResult:
 
 
 def normalize(text: str) -> str:
-    """یکدست‌سازی: ارقام فارسی/عربی → لاتین، حذف کاراکترهای مزاحم."""
-    t = text.translate(_FA_DIGITS)
+    """یکدست‌سازی: NFKC + ارقام فارسی/عربی → لاتین، حذف کاراکترهای مزاحم.
+
+    NFKC شکل‌های ارائه‌ی عربی/یونیکدِ عریض و ارقام تمام‌عرض را هم می‌شکند.
+    """
+    t = unicodedata.normalize("NFKC", text)
+    t = t.translate(_FA_DIGITS)
     t = t.replace("\u200c", " ").replace("\u200f", "").replace("\u200e", "")
     t = re.sub(r"[،٬]", "", t)  # جداکننده‌ی هزارگان فارسی
     t = re.sub(r"\s+", " ", t).strip()

@@ -583,7 +583,7 @@ def gold_sheet(
     ),
 ) -> None:
     """اعتبارسنجی مجموعه‌ی طلایی + ساخت برگه‌ی تأیید انسانی («یک نفر چک کند»)."""
-    from peyja.evals import render_verification_sheet, validate_gold
+    from peyja.evals import render_verification_html, render_verification_sheet, validate_gold
 
     samples = json.loads(gold.read_text(encoding="utf-8"))
     issues = validate_gold(samples)
@@ -593,7 +593,10 @@ def gold_sheet(
             typer.echo(f"  - {i}")
         raise typer.Exit(code=1)
     out.write_text(render_verification_sheet(samples), encoding="utf-8")
-    typer.echo(f"✅ {len(samples)} نمونه معتبر — برگه‌ی تأیید: {out}")
+    html_out = out.with_suffix(".html")
+    html_out.write_text(render_verification_html(samples), encoding="utf-8")
+    typer.echo(f"✅ {len(samples)} نمونه معتبر — برگه‌ی متنی: {out}")
+    typer.echo(f"   برگه‌ی تعاملی (تیک‌خور): {html_out} — در مرورگر باز کنید")
 
 
 @app.command("gold-score")

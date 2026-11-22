@@ -33,7 +33,10 @@ class SafeProductExtraction(BaseModel):
     title_fa: str | None = Field(default=None, description="عنوان کوتاه فارسی محصول")
     category: Category | None = Field(default=None, description="دسته‌ی محصول")
     brand: str | None = Field(default=None, description="برند (فارسی یا لاتین)")
-    colors: list[str] = Field(default_factory=list, description="رنگ‌ها/شیدها")
+    colors: list[str] = Field(default_factory=list, description="رنگ‌ها/تناژها")
+    shades: list[str] = Field(
+        default_factory=list, description="شماره‌ی شید (مثلا «شماره ۱۲») — نه رنگ، نه سایز"
+    )
     sizes: list[str] = Field(default_factory=list, description="سایزها/حجم‌ها")
     volume_ml: float | None = Field(default=None, description="حجم به میلی‌لیتر اگر ذکر شده")
     spf: int | None = Field(default=None, description="ضدآفتاب: SPF اگر ذکر شده")

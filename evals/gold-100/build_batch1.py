@@ -37,13 +37,14 @@ SYNTHETIC = [
         "price_toman": 4_800_000,
         "old_price_toman": None,
         "category": "skincare",
-        "brand": None,
+        "brand": "سان‌سل",
         "colors": [],
         "sizes": ["50"],
         "volume_ml": 50,
         "spf": 50,
         "stock_state": "in_stock",
         "notes": "فرم «۴/۸۰» = ۴.۸ میلیون (کسر ۲رقمی = صدم میلیون)",
+        "shades": [],
     },
     {
         "caption": "رژلب مات گلدن رز 💋 شماره ۱۲ | فقط ۴۸۰ تومان",
@@ -52,11 +53,12 @@ SYNTHETIC = [
         "category": "makeup",
         "brand": "گلدن رز",
         "colors": [],
-        "sizes": ["12"],
+        "shades": ["12"],
+        "sizes": [],
         "volume_ml": None,
         "spf": None,
         "stock_state": "in_stock",
-        "notes": "عدد ۳رقمی بدون ممیز = هزار تومان",
+        "notes": "«شماره ۱۲» = شید (نه رنگ، نه سایز)؛ عدد ۳رقمی بدون ممیز = هزار تومان",
     },
     {
         "caption": "تخفیف پاییزه 🍂 ادوپرفیوم ۹۰ میل از ۹۰۰ به ۷۵۰ فقط تا آخر هفته",
@@ -131,11 +133,11 @@ LABELS: dict[int, tuple] = {
         "makeup",
         "کیکو میلانو",
         [],
-        ["17"],
+        [],
         None,
         None,
         "unknown",
-        "شید/شماره ۱۷",
+        "شید/شماره ۱۷ (در SHADES)",
     ),
     6: (
         None,
@@ -192,11 +194,11 @@ LABELS: dict[int, tuple] = {
         "makeup",
         "کیکو میلانو",
         [],
-        ["44"],
+        [],
         None,
         None,
         "unknown",
-        "لیپ‌گلاس شماره ۴۴",
+        "شید/شماره ۴۴ (در SHADES)",
     ),
     12: (None, None, "makeup", None, [], [], None, None, "in_stock", "#میکاپ_نود"),
     13: (
@@ -679,6 +681,12 @@ LABELS: dict[int, tuple] = {
     ),
 }
 
+# شماره‌ی شید (shade) — «شماره ۱۲» نه رنگ است نه سایز (داوری کاربر روی verification-sheet)
+SHADES: dict[int, list[str]] = {
+    5: ["17"],  # «کیکو ۱۷» = شید ۱۷
+    11: ["44"],  # «لیپ گلاس 44» = شید ۴۴
+}
+
 
 def main() -> None:
     conn = sqlite3.connect(DB_PATH)
@@ -717,6 +725,7 @@ def main() -> None:
                 "category": cat,
                 "brand": brand,
                 "colors": colors,
+                "shades": SHADES.get(raw_id, []),
                 "sizes": sizes,
                 "volume_ml": vol,
                 "spf": spf,

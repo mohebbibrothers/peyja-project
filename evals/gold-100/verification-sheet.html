@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl"><head><meta charset="utf-8">
+<title>برگه‌ی تأیید gold-100</title>
+<style>
+ body{font-family:Vazirmatn,Tahoma,sans-serif;background:#111827;color:#e5e7eb;margin:0;padding:1rem}
+ h1{font-size:1.2rem} .bar{position:sticky;top:0;background:#111827;padding:.6rem 0;z-index:5}
+ .row{display:flex;gap:.8rem;align-items:flex-start;background:#1f2937;border-radius:.6rem;padding:.7rem;margin:.5rem 0}
+ .ok{display:flex;align-items:center;gap:.35rem;white-space:nowrap;padding-top:.3rem}
+ .meta{flex:1;min-width:0} .cap{white-space:pre-wrap;font-size:.82rem;color:#9ca3af;max-height:6.5rem;overflow:auto}
+ .fields{display:flex;flex-wrap:wrap;gap:.35rem}
+ input,select{background:#374151;color:#f9fafb;border:.5px solid #4b5632;border-radius:.35rem;padding:.3rem .45rem;font-size:.82rem}
+ button{background:#2563eb;color:#fff;border:0;border-radius:.5rem;padding:.55rem 1rem;font-size:.95rem;cursor:pointer;margin-left:.5rem}
+ textarea{width:97%;height:10rem;background:#0b1220;color:#a7f3d0;border-radius:.5rem;padding:.6rem;font-size:.8rem}
+ .row.done{opacity:.55} .tag{font-size:.75rem;background:#065f46;border-radius:.4rem;padding:.15rem .5rem}
+</style></head><body>
+<h1>☑ برگه‌ی تأیید انسانی gold-100 — «یک نفر چک کند»</h1>
+<div class="bar">
+ <span class="tag" id="progress">0 / 0 تأیید شده</span>
+ <button onclick="verifyAll()">تأیید همه</button>
+ <button onclick="makeReport()">ساختِ خروجیِ اصلاحات</button>
+ <button onclick="document.getElementById('out').select();document.execCommand('copy')">کپیِ خروجی</button>
+</div>
+<p style="font-size:.85rem;color:#9ca3af">کپشن‌ها کامل‌اند. برای هر ردیف: اگر درست است ☑ بزنید؛
+اگر غلط است فیلدها را همان‌جا اصلاح کنید (و ☐ را باز بگذارید). در پایان «ساختِ خروجیِ اصلاحات»
+را بزنید و متن JSON را برای پیجا بفرستید.</p>
+<div class="row" data-id="gold-001" data-original='{&quot;price_toman&quot;: &quot;4800000&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;سان‌سل&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;50&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-001 🧪synthetic</b><div class="cap">کرم ضد آفتاب سان‌سل SPF50 🌞 حجم ۵۰ میل | مناسب پوست چرب | قیمت ۴/۸۰ تومان</div></div><div class="fields"><input data-f="price_toman" value="4800000" data-orig="4800000" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="سان‌سل" data-orig="سان‌سل" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="50" data-orig="50" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-002" data-original='{&quot;price_toman&quot;: &quot;480000&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;گلدن رز&quot;, &quot;shades&quot;: &quot;12&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-002 🧪synthetic</b><div class="cap">رژلب مات گلدن رز 💋 شماره ۱۲ | فقط ۴۸۰ تومان</div></div><div class="fields"><input data-f="price_toman" value="480000" data-orig="480000" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="گلدن رز" data-orig="گلدن رز" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="12" data-orig="12" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-003" data-original='{&quot;price_toman&quot;: &quot;750000&quot;, &quot;category&quot;: &quot;perfume&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;90&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-003 🧪synthetic</b><div class="cap">تخفیف پاییزه 🍂 ادوپرفیوم ۹۰ میل از ۹۰۰ به ۷۵۰ فقط تا آخر هفته</div></div><div class="fields"><input data-f="price_toman" value="750000" data-orig="750000" style="width:9rem" placeholder="تومان"><input data-f="category" value="perfume" data-orig="perfume" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="90" data-orig="90" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-004" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;haircare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;400&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-004 🧪synthetic</b><div class="cap">شامپو بدون سولفات حجم ۴۰۰ | قیمت توافقی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="haircare" data-orig="haircare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="400" data-orig="400" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-005" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-005</b><div class="cap">⁨	⁨	⁨	⁨	روتین پوستیت چیه دافی؟!🧴😍
+
+محصولات موجود در فارماشاپ✅
+
+#محصولات_پوستی #محصولات_مراقبتی #روتین_پوستی⁩⁩⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-006" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-006</b><div class="cap">⁨	⁨	⁨	⁨	اینبار قرعه کشی سایه و رژگونه استیکی برا ۲ نفر از شماها🎁🛍️
+
+شرایط اینجا برات نوشتم:👇🏻🎀🪄
+
+۱)پیج زیرفالو داشته باشی🤭
+‪‪@farmashop_aras‬‬ 
+۲)۵ نفر از دوستاتو زیر پست تگ کنی🎀
+۳)این ریلزو برا یکی از دوستاتم بفرس📤
+
+به همین سادگی برنده ایتم های فارماشاپ میشید✅
+
+#مسابقه #هدیه #محصولات_ارایشی⁩⁩⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-007" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;فارم استی&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-007</b><div class="cap">⁨	⁨	سیوش کن اگه دنبال ابرسان با کیفیت و با قیمت خوب میگردی👌🏻🤍
+
+امپول کلاژن+هیالورونیک اسید فارم استی ساخت کره🇰🇷
+ ابرسان چند کاره با حجم250mil که حسابی میصرفه✅
+
+اگه پوستت خشک و کم اب و بی حال شده این امپول واقعا نجات دهندس🤌🏻
+
+#آبرسان #روتین_پوست_خشک #محصولات_مراقبتی #محصولات_پوستی⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="فارم استی" data-orig="فارم استی" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-008" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;کیکو میلانو&quot;, &quot;shades&quot;: &quot;17&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-008</b><div class="cap">دخترایی که عاشق آرایش ملایم و لب‌های شاین هستن، این یکی رو از دست ندن! 🤍🪄
+ 
+کیکو ۱۷ از اون محصولاست که دلت می‌خواد همیشه توی کیفت داشته باشیش؛ برای یه درخشش خوشگل و تکمیل کردن میکاپ روزانه‌ات🤌🏻🩷🫧
+
+#کیکو #لیپگلاس_شاین #کیکو_میلانو #محصولاتآرایشی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="کیکو میلانو" data-orig="کیکو میلانو" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="17" data-orig="17" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-009" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-009</b><div class="cap">مگه نه دخترا؟!😍
+
+محصولات داخل ویدیو✅
+
+مرطوب کننده و ابرسان آنوا🩵
+ضد افتاب سنتلا💙
+ترمیم کننده اکسیس وای💚
+ابرسان دکتر التیا🤍
+ویتامین C آرنسیا💛
+دورچشم دکتر ملاکسین🧡
+
+#محصولات_پوستی #مراقبت_پوست</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-010" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-010</b><div class="cap">⁨	اعتیاد من؟ محصولات پوستی و روتینای خوشگلشون!😂🫧
+.
+.
+اگه شماهم با دیدن محصولات پوستی ذوق می‌کنین، خوش اومدین به فارماشاپ؛ جایی که قراره خوشگل‌ترین اورجینال‌های پوستی رو باهم پیدا کنیم! 😍🤍
+
+#فان #محصولات_پوستی #روتین_پوستی #چالش #سنتلا⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-011" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-011</b><div class="cap">⁨	⁨	⁨	⁨	⁨	⁨	⁨	پوست زیباتر اتفاقی نیست، نتیجه‌ی مراقبت درست و مداومه! 🥹🧴✨
+
+اینجا می‌تونی محصولات پوستی اورجینال رو با قیمت مناسب تهیه کنی.
+با مشاوره رایگان کمکت می‌کنیم بهترین روتین رو متناسب با نوع پوستت انتخاب کنی تا پوستت همون درخششی رو داشته باشه که لایقشه 😍🫧
+
+زیبایی از پوست سالم شروع می‌شه 🍒
+#روتین_پوست #پوست_خشک #مراقبت_پوست #محصولات_پوستی⁩⁩⁩⁩⁩⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-012" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-012</b><div class="cap">⁨	⁨	⁨	⁨	⁨	⁨	همه محصولات تو پیجمون موجودن ♥️✅
+
+میتونید برای ثبت سفارش دایرکت پیام بدین😘
+
+#روتین_پوستی #محصولات_مراقبتی #محصولات_ارایشی #محصولات_پوستی #مراقبت_پوستی⁩⁩⁩⁩⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-013" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;haircare&quot;, &quot;brand&quot;: &quot;Lilyeve&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-013</b><div class="cap">⁨	⁨	⁨	⁨	⁨	⁨	⁨	⁨	⁨	⁨	⁨	⁨	موهات کم‌پشت شده و از ریزشش خسته شدی؟🥹
+
+این محصول رو بشناس! ✨
+
+🫧 سرم ضدریزش و تقویت‌کننده پوست سر Lilyeve
+
+✔️ کمک به مراقبت از پوست سر
+✔️ کمک به تقویت و بهبود وضعیت موها
+✔️ اپلیکاتور براش‌دار برای استفاده راحت‌تر
+✔️ مناسب روتین مراقبت از موهای کم‌پشت
+
+موهات هم به مراقبت اصولی نیاز دارن! 🤍
+
+#ریزش_مو #سرم_ضدریزش #روتین_مو #تقویت_مو⁩⁩⁩⁩⁩⁩⁩⁩⁩⁩⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="haircare" data-orig="haircare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="Lilyeve" data-orig="Lilyeve" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-014" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;کیکو میلانو&quot;, &quot;shades&quot;: &quot;44&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-014</b><div class="cap">⁨	ورق بزن تا تستشو رو لب ببینی✅
+
+لیپ گلاس 44کیکو پرطرفدارترین رنگشه🧸🍂
+یه درخشش خوشگل و آینه‌ای که لب‌هاتو چند برابر جذاب‌تر نشون می‌ده! 🫦
+
+#کیکو #لیپ_گلاس #لیپگلاس_کیکو #کیکو_میلانو⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="کیکو میلانو" data-orig="کیکو میلانو" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="44" data-orig="44" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-015" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-015</b><div class="cap">⁨	⁨	⁨	⁨	⁨	همیشه همین سلیقه…🍂🤎🪄
+
+همه محصولات موجوده
+
+#پاییز🍁 #میکاپ_نود #لوازم_آرایشی #محصولات_مراقبتی⁩⁩⁩⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-016" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;شیگلم&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;berry،burgundy&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-016</b><div class="cap">⁨	⁨	⁨	⁨	از دل پینترست اومده💕🤌🏻
+
+پالت سایه ۱۲ رنگ شیگلم🎀🌸
+
+در دو رنگ «berry🎀وburgundy🥥»
+
+۵رنگ شاین و ۷رنگ مات در تناژ نود و صورتی داره🪄
+
+پیگمنت و ماندگاری بسیار بالایی داره✅
+به راحتی فید میشه✅
+
+و یک براش با کیفیت دو سر داره😍
+یک سر براش تخت
+و یک سر براش فید✨
+
+#پالت_سایه_چشم #شیگلم #سایه #آرایش #پینترستی⁩⁩⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="شیگلم" data-orig="شیگلم" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="berry،burgundy" data-orig="berry،burgundy" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-017" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-017</b><div class="cap">⁨	⁨	⁨	⁨	من که انتخابم مشخصه! 😂🎁
+حالا نوبت شماست…
+
+#آرایش #ریلز #لوازم_بهداشتی #اکسپلور #لوازم_آرایشی⁩⁩⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-018" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;hygiene&quot;, &quot;brand&quot;: &quot;داو&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-018</b><div class="cap">⁨	این اسپریای داو واقعاً یه وایب تمیزی و خوشبویی خاص دارن 😭🤍✨
+از اون بوها که دلت می‌خواد هی خودتو بو کنی 😂🫶🏻
+
+#اسپری_داو #اسپری_خوشبوکننده #محصولات_بهداشتی #محصولات_مراقبتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="hygiene" data-orig="hygiene" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="داو" data-orig="داو" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-019" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-019</b><div class="cap">✅✅✅✅✅✅
+
+این فقط بخشی از محصولات پیجمه👌
+ اگه دنبال محصولات آرایشی و پوستی اصل هستی، یه سر به پیجم بزن، شاید محصولی که دنبالش هستی همینجاست✅😍
+
+#لوازم_ارایشی_بهداشتی #تبریز #محصولاتآرایشی #ارایشی_بهداشتی #جلفا</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="" data-orig="" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-020" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;hygiene&quot;, &quot;brand&quot;: &quot;داو&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-020</b><div class="cap">بوی خوبت رو بسپر به داوو 😮‍💨🧼🤌🏻
+۲۴ ساعت خوشبویی و حس تمیزی ✨💕
+
+#مام_قارچی #داو #لوازم_بهداشتی #لوازم_آرایشی #محصولات_مراقبتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="hygiene" data-orig="hygiene" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="داو" data-orig="داو" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-021" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-021</b><div class="cap">اول این پست رو سیو کن که گمش نکنی! 🤍
+
+برای داشتن یه روتین پوستی خوب، لازم نیست کلی محصول داشته باشی؛ فقط کافیه محصولاتی رو انتخاب کنی که متناسب با نیاز پوستت باشن.
+
+توی این پست چند محصول کاربردی برای مراقبت از پوست معرفی کردیم تا انتخاب برات راحت‌تر بشه. ✨
+
+💌 مشاوره رایگان در دایرکت
+
+#جوانساز #ضد_جوش #روتین_پوستی #پوست_خشک</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-022" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-022</b><div class="cap">⁨	⁨	شمام اینجورین مگ نه؟!😂💕🪞
+
+همه محصولات موجود✅
+
+#محصولات_آرایشی #روتین_پوستی #فان #لوازم_بهداشتی⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="" data-orig="" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-023" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-023</b><div class="cap">😌😂
+
+#فان #چالش #آنلاین_شاپ</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="" data-orig="" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-024" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-024</b><div class="cap">یه پاییز خوش‌رنگ، با کلی آیتم جذاب 🍂
+
+ضد افتاب ایزیدین
+اسکراب بدن فارماسی
+شامپو بدن
+لیپ بالم
+کانتور
+کرم دست و صورت
+
+همه محصولات موجود✅
+
+#پاییز #محصولات_بهداشتی #محصولات_ارایشی #محصولات_مراقبتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-025" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;شیگلم&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;صورتی،نود&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-025</b><div class="cap">🎀پلت سایه دوازده رنگ Sheglam
+‏
+از دلِ پینترست اومده🦢🪞
+
+12 رنگِ ناز و کاربردی🤌🏻
+5رنگ شاین و 7 رنگ مات در تناژ صورتی و نود داره🪄
+
+•پیگمنت و ماندگاری فوق العاده بالایی داره
+‌‎
+
+یه پلت نانازی برای صورتی پسندا و همچنین نود پسندا👱🏻‍♀️
+
+‌‎ یه براش باکیفیتِ دوسر هم داره🎀
+یه سر براش تخت و
+یه سر براش فید💕
+
+#شیگلم #سایه_چشم #پینترستی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="شیگلم" data-orig="شیگلم" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="صورتی،نود" data-orig="صورتی،نود" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-026" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-026</b><div class="cap">تو این پست تقاوت نسخه های اصل و فیک چند محصول مختلف رو کنار هم گذاشتیم تا راحت تر بتونید قبل از خرید،محصول درست رو تشخیص بدید🌱✅
+
+#اصل_فیک #محصولات_پوستی #فیتو #سنتلا</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-027" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-027</b><div class="cap">اصل یا فیک؟ 👀
+گاهی تفاوت‌ها خیلی ظریفن، اما وقتی بدونی کجا باید نگاه کنی، تشخیصشون راحت‌تر میشه! 🔍✨
+
+توی این پست محصول اصل و فیک رو کنار هم مقایسه کردم تا خودت تفاوت‌ها رو ببینی.
+
+اگه برات مفید بود، ذخیره‌ش کن و برای کسی بفرست که موقع خرید به این نکات نیاز داره 🤍
+
+#نامبوزین #محصولات_اورجینال #دورچشم #ابرسان #محصولات_پوستی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-028" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-028</b><div class="cap">وقتی بالاخره به جای هدر دادن پول،
+محصول درست رو پیدا می‌کنی…😉
+
+این چند تا محصول جز خریدای اصلی من شدن🤌🏻
+
+اگه می‌خوای بدونی دقیقاً کدوما هستن و قیمتشون چقدره،
+کلمه «روتین»کامنت کن ب طور خودکار ارسال بشه واست💕💕
+
+#آرایش #لوازم_آرایشی #محصولات_ارایشی #لوازم_بهداشتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-029" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-029</b><div class="cap">گاهی فقط انتخاب محصول مهم نیست؛ زمان استفاده ازش هم خیلی مهمه! ✨🧴
+
+اگه می‌خوای روتین پوستیت بهترین نتیجه رو بهت بده و پوستت شفاف‌تر و سالم‌تر بمونه، باید بدونی هر محصول رو صبح استفاده کنی یا شب 🌙☀️
+
+این ویدیو رو سیو کن که هر وقت روتینت رو انجام دادی، یه راهنمای سریع و دم‌دست داشته باشی 😍🤌🏻
+
+حالا بگو ببینم، تو استفاده از کدوم محصول همیشه شک داشتی که صبحه یا شب؟ 👀👇
+
+#روتین_پوستی #محصولات_پوستی #لوازم_آرایشی #مراقبت_پوستی #لوازم_بهداشتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-030" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-030</b><div class="cap">برای دخترایی که میگن چیزی نمی‌خوام ولی این پستو سیو می‌کنن 😂🫠
+
+#روز_دختر #دسته_گل #پک_آرایشی #کادو_دخترانه #لوازم_آرایشی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-031" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-031</b><div class="cap">با من همه مشکلات پوستیت رو بر طرف کن🌱🧴🪄🫧
+
+#محصولات_پوستی #مراقبت_پوست #ضدلک #ابرسان #ضدجوش</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-032" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-032</b><div class="cap">یه روتین پوستی خوب، فقط برای پوست نیست؛ برای اون چند دقیقه‌ایه که به خودت و حال خوبت اختصاص میدی 🤍🫧✨
+
+#محصولات_مراقبتی #پوست_سالم #پوست_شفاف #مشکلات_پوستی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-033" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;hygiene&quot;, &quot;brand&quot;: &quot;بث اند بادی&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-033</b><div class="cap">بث اند بادی‌های نازنین 🥹🎀 هر رایحه‌شون یه حس شیرین و دوست‌داشتنیه؛ از اون بوهایی که دلت می‌خواد همیشه بوی تنت بده 😍🫧🤍
+
+#بادی_اسپلش #روتین_پوستی #محصولات_مراقبتی #لوازم_بهداشتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="hygiene" data-orig="hygiene" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="بث اند بادی" data-orig="بث اند بادی" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-034" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-034</b><div class="cap">حال و هوای پاییز روی چشات🤎🪄🍂
+
+#سایه_چشم #پاییز🍁 #میکاپ #محصولات_ارایشی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-035" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-035</b><div class="cap">فهمیدی یا بیشتر بگم؟🤭
+
+#پک_آرایشی #ترند #آرایشی_بهداشتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-036" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-036</b><div class="cap">سطح انتظارات: همین‌قدر ساده، همین‌قدر گرون 😂
+
+#اسکین_کر #روتین_پوستی #ارایشی #ریلز</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-037" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;hygiene&quot;, &quot;brand&quot;: &quot;داو&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-037</b><div class="cap">این اسپریای داو واقعاً یه وایب تمیزی و خوشبویی خاص دارن 😭🤍✨
+از اون بوها که دلت می‌خواد هی خودتو بو کنی 😂🫶🏻
+
+🥒 خنک و تازه
+🥥 شیرین و گرم
+🍎 دخترونه و ملایم
+🌸 گلی و لطیف
+☁️ تمیز و پودری
+
+هرکدوم یه حس قشنگ دارن، فقط مونده انتخاب کنی کدوم وایب بیشتر بهت میاد 😭🤍
+
+#اسپری_خوشبوکننده #داو #محصولات_بهداشتی #اسپری_داو #دئودورانت</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="hygiene" data-orig="hygiene" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="داو" data-orig="داو" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-038" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-038</b><div class="cap">منو که خیلی خوشحال میکنه💕🤌🏻🥺
+
+همه محصولات موجود✅
+
+#کادوتولد #باکس_آرایشی #لوازم_آرایشی #پک_آرایشی #محصولات_مراقبتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-039" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;وازلین&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-039</b><div class="cap">💋 لبای نرم و خوشگل با یه کوچولوی وازلین!
+بالم لب ساده و کاربردی برای مراقبت روزانه 🩷
+
+#لوازم_آرایشی #بالم_لب #محصولات_مراقبتی #لوازم_بهداشتی #وازلین</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="وازلین" data-orig="وازلین" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-040" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-040</b><div class="cap">بفرست برای کسی که میخوای برات بخره💕👧🏻🪄🛍️🪞🎀
+
+همه محصولات موجود هست✅
+کدوم محصول بیشتر چشمتونو گرفت؟!
+
+برای اطلاع قیمت و موجودی دایرکت پیام بدین📤
+
+#لوازم_آرایشی #محصولات_مراقبتی #روتین_پوستی #لوازم_بهداشتی #ترند</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-041" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-041</b><div class="cap">اگ یکی از این مشکلات پوستی رو داری احتمالا فقط باید محصول درست رو وارد روتینت کنی🤌🏻😍
+
+همه محصولات موجود در فارماشاپ✅
+برای اطلاع قیمت و ثبت سفارش دایرکت پیام بدین❤️
+
+#روتین_پوستی #محصولات_مراقبتی #لوازم_بهداشتی #لوازم_آرایشی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-042" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;شیگلم&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-042</b><div class="cap">بفرست برا همونیکه میدونی💕🤭
+
+پک شیگلم🤌🏻🩷
+هم برای خودت، هم یه انتخاب خوشگل برای هدیه 🎀
+برای دیدن قیمت و موجودی، دایرکت بده 💌
+
+#شیگلم #لوازم_آرایش #پک_هدیه #محصولات_آرایشی #محصولات_مراقبتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="شیگلم" data-orig="شیگلم" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-043" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;کلینیک&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-043</b><div class="cap">یه انتخاب شیک برای روتین پوستیِ هر روزت 🤍✨
+
+💧 آبرسان دراماتیکالی کلینیک
+برای وقتی که پوستت تشنه‌ی آبرسانیه و یه حس نرمی و لطافت می‌خوای.
+
+سادگی، کیفیت و آبرسانی؛ دقیقاً همون چیزی که از یه محصول کلینیک انتظار داری 🩷
+
+برای قیمت و سفارش دایرکت 💌
+
+#روتین_پوستی #آبرسان #لوازم_آرایشی #ریلز #محصولات_مراقبتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="کلینیک" data-orig="کلینیک" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-044" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-044</b><div class="cap">قبل از هر خریدی فقط قیمت رو نبین؛ ببین قراره چقدر برات بمونه! ✨
+
+#لوازم_آرایشی #محصولات_پوستی #محصولات_مراقبتی #آنلاین_شاپ #روتین_پوستی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-045" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;فارماسی&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;صورتی&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-045</b><div class="cap">با Rose Done فارماسی یک میکاپ صورتی لطیف و خاص بساز🪄
+
+شاین‌های ظریفش زیر نور جلوه فوق‌العاده‌ای دارن و رنگ‌های ماتش به‌راحتی فید می‌شن. ✨
+
+یه انتخاب شیک برای هر کسی که آرایش‌های تمیز و دخترونه رو دوست داره. 
+
+#آرایش #لوازم_آرایشی #میکاپ #آنلاین_شاپ #فارماسی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="فارماسی" data-orig="فارماسی" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="صورتی" data-orig="صورتی" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-046" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;فارماسی&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;صورتی&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-046</b><div class="cap">اگه عاشق تناژ صورتی و آرایش ملایمی، این ترکیب دقیقاً برای توئه🎀🤌🏻
+
+#سایه #فارماسی #آرایش #لوازم_آرایشی #میکاپ</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="فارماسی" data-orig="فارماسی" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="صورتی" data-orig="صورتی" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-047" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-047</b><div class="cap">⁨	خوشحال کردن خانوما ک کاری نداره😌😎
+همه محصولات موجود در فارماشاپ✅
+
+#آرایش #لوازم_بهداشتی #لوازم_آرایشی #آنلاین_شاپ #ترند⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-048" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-048</b><div class="cap">یه اعتراف کنید…😂
+چند بار فقط برای اینکه بسته‌تون زودتر برسه، هی برنامه پست رو چک کردین؟📦👀
+
+راستشو بگین، من تنها نیستم؟ 🤣👇
+
+#آرایش #پست #آنلاین_شاپ #لوازم_آرایشی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-049" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-049</b><div class="cap">❓هنوز نمی‌دونی BB کرم بگیری یا CC کرم؟
+
+خیلیا تفاوتشون رو نمی‌دونن!
+
+توی دایرکت فقط نوع پوستت رو بگو، من دقیق میگم کدوم برات مناسب‌تره. 🤍✨ 
+
+#آرایش #اکسپلور #فارماسی #لوازم_آرایشی #لوازم_بهداشتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-050" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;skincare&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-050</b><div class="cap">❌❌❌❌❌❌
+سه محصول نجات بخش روتینم!🤍🌸💎🧴
+
+۱.دور چشم نامبوزین
+۲.اسنس نامبوزین
+۳.ابرسان فارم استی
+همه محصولات موجود📤
+
+شما اگه بودین کدوم محصول رو انتخاب می‌کردید؟🤔
+
+🩷برای اطلاع قیمت کلمه«پوست»کامنت کن🩷
+
+#آرایش #آنلاین_شاپ #محصولات_مراقبتی #نامبوزین #ترند</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="skincare" data-orig="skincare" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-051" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-051</b><div class="cap">POV: وارد یخچال رویاهات شدی 😍🧴🧊
+ 
+کدوم یکی برمیداری؟!😍
+
+#آرایش #محصولاتآرایشی #آرایشیبهداشتی #ترند #اکسپلور</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-052" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-052</b><div class="cap">یعنی میشه؟!🥺
+شاید همین کامنت کوچیک تو باعث بشه این ویدیو به آدم‌های بیشتری برسه.
+اگر این پست اومد جلوی چشمت، فقط یه ❤️ بزار واسم
+
+شاید همین حمایت کوچیک، دلیل دیده شدن یه پیج کوچیک باشه. ✨
+
+#اکسپلور #حمایت #آنلاین_شاپ #لوازمآرایشی #ترند</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="" data-orig="" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-053" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-053</b><div class="cap">😂😂
+
+کامنت کن ببینم اولین برندی که سمتش میری چیه؟
+🤍 سنتلا
+💖 فارماسی
+🩷 اسنس
+یا یه برند دیگه؟ 😍
+
+#آرایش #ترند #آنلاین_شاپ #لوازمآرایشی #لوازم_بهداشتی_آرایشی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-054" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-054</b><div class="cap">مامانمم خریدههه😂
+
+همه محصولات موجود ✅
+
+#لوازم_آرایشی #ترند #آرایش #لوازم_بهداشتی #ریلز</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-055" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-055</b><div class="cap">✨ اگه عاشق اسکین‌کر و آرایش باشی، مغزت دقیقاً همین شکلیه! 🤍😂
+کدوم محصول رو همیشه باید توی کیف یا روتینت داشته باشی؟
+کامنت کن🥰
+
+#لوازم_آرایشی #لوازم_بهداشتی #ریلز #آرایش #ترند</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="" data-orig="" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-056" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-056</b><div class="cap">ساغول سنی🥹❤️
+
+همه محصولات موجود✅
+
+#آرایش #تبریز #ترک #لوازم_ارایشی #جلفا</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-057" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-057</b><div class="cap">پَیازای خیانت کار همیشه باید زشت و بد بو بمونن😂🧅
+
+@farmashop_aras 
+@farmashop_aras 
+
+#ترند #چالش #آرایش #انلاین_شاپ #ریلز</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="" data-orig="" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-058" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;hygiene&quot;, &quot;brand&quot;: &quot;داو&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-058</b><div class="cap">بهترین روتین برای این فصله😍
+
+پس لطفا حذفش نکنیدد!!
+
+مام قارچی داو🍄
+اسپری داو🌸
+لوسیون بدن🌱
+
+ثبت سفارش از طریق دایرکت📤
+
+#آرایش #بهداشتى #ترند #ریلز #آنلاین_شاپ</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="hygiene" data-orig="hygiene" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="داو" data-orig="داو" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-059" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-059</b><div class="cap">⁨	⁨	⁨	مگ نه؟!😂💸🤭
+همه محصولات موجود هست✅
+
+#ترند #آرایش #فان #اکسپلور #لوازم_ارایشی⁩⁩⁩</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-060" data-original='{&quot;price_toman&quot;: &quot;550000&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;اسنس&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;in_stock&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-060</b><div class="cap">👀 مژه‌هاتو چند برابر کن!
+✨ ریمل اسنس موجود شد
+۵۵۰💸
+
+#آرایش #ریمل #اسنسصورتی #لوازم_ارایشی #لوازم_بهداشتی</div></div><div class="fields"><input data-f="price_toman" value="550000" data-orig="550000" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="اسنس" data-orig="اسنس" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="in_stock"><option selected>in_stock</option><option>out_of_stock</option><option>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-061" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;اسنس&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-061</b><div class="cap">مژه‌های بلند و پرپشت بدون سنگینی!
+
+ریمل اسنس یکی از اون محصولاته که بعد از یک بار استفاده عاشقش میشی 😍
+
+✔️ حجم‌دهنده
+✔️ بلندکننده
+✔️ بدون ریزش
+✔️ مناسب استفاده روزانه
+
+برای قیمت و سفارش دایرکت پیام بدین 💌
+
+#ریمل #لوازمآرایشی #محصولات_مراقبتی_پوست_مو #آرایش</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="اسنس" data-orig="اسنس" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-062" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;makeup&quot;, &quot;brand&quot;: &quot;&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;unknown&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-062</b><div class="cap">بفرست براش🩷🥹
+
+ثبت سفارش دایرکت📤
+
+#لوازمآرایشی #روزدختر #کادویی #آرایشی #محصولات_بهداشتی</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="makeup" data-orig="makeup" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="" data-orig="" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="unknown"><option>in_stock</option><option>out_of_stock</option><option>on_request</option><option selected>unknown</option></select></div></div>
+<div class="row" data-id="gold-063" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;hygiene&quot;, &quot;brand&quot;: &quot;داو&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-063</b><div class="cap">اسپری داو، حس تمیزی و طراوتی که تمام روز همراهته 🤍
+
+✔️ ماندگاری بالا
+✔️ رایحه دلنشین
+✔️ مناسب استفاده روزانه
+
+برای سفارش و استعلام قیمت دایرکت پیام بده 🌸
+
+#اسپری_داو #لوازم_بهداشتی #لوازم_ارایشی #آرایش #آنلاین_شاپ</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="hygiene" data-orig="hygiene" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="داو" data-orig="داو" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<div class="row" data-id="gold-064" data-original='{&quot;price_toman&quot;: &quot;&quot;, &quot;category&quot;: &quot;hygiene&quot;, &quot;brand&quot;: &quot;داو&quot;, &quot;shades&quot;: &quot;&quot;, &quot;colors&quot;: &quot;&quot;, &quot;sizes&quot;: &quot;&quot;, &quot;stock_state&quot;: &quot;on_request&quot;}'><label class="ok"><input type="checkbox" class="verify"> تأیید</label><div class="meta"><b>gold-064</b><div class="cap">اسپری‌های پرطرفدار داو ✨
+ضدتعریق، خوشبو و مناسب استفاده روزانه.
+
+موجود در چند رایحه جذاب 🌸
+
+برای قیمت و سفارش دایرکت پیام بده 💌
+
+#اسپری_داو #لوازم_ارایشی #لوازم_بهداشتی #محصولات_بهداشتی #ضدتعریق</div></div><div class="fields"><input data-f="price_toman" value="" data-orig="" style="width:9rem" placeholder="تومان"><input data-f="category" value="hygiene" data-orig="hygiene" style="width:6.5rem" placeholder="دسته"><input data-f="brand" value="داو" data-orig="داو" style="width:6.5rem" placeholder="برند"><input data-f="shades" value="" data-orig="" style="width:5.5rem" placeholder="شیدها"><input data-f="colors" value="" data-orig="" style="width:7rem" placeholder="رنگ‌ها"><input data-f="sizes" value="" data-orig="" style="width:5.5rem" placeholder="سایز/حجم"><select data-f="stock_state" data-orig="on_request"><option>in_stock</option><option>out_of_stock</option><option selected>on_request</option><option>unknown</option></select></div></div>
+<h2 style="font-size:1rem">خروجیِ اصلاحات (JSON)</h2>
+<textarea id="out" readonly></textarea>
+<script>
+function refresh(){
+ let all=document.querySelectorAll('.row'),d=0;
+ all.forEach(r=>{if(r.querySelector('.verify').checked){r.classList.add('done');d++}else r.classList.remove('done')});
+ document.getElementById('progress').textContent=d+' / '+all.length+' تأیید شده';
+}
+document.addEventListener('change',refresh);
+function verifyAll(){document.querySelectorAll('.verify').forEach(c=>c.checked=true);refresh()}
+function makeReport(){
+ const report=[];
+ document.querySelectorAll('.row').forEach(r=>{
+  const orig=JSON.parse(r.dataset.original),cur={};
+  r.querySelectorAll('[data-f]').forEach(el=>cur[el.dataset.f]=el.value);
+  const changed={};
+  for(const k in orig){if(String(cur[k])!==String(orig[k]))changed[k]={old:orig[k],new:cur[k]}}
+  const checked=r.querySelector('.verify').checked;
+  if(!checked||Object.keys(changed).length>0){
+   report.push({id:r.dataset.id,verified:checked,changes:changed});
+  }
+ });
+ document.getElementById('out').value=JSON.stringify(report,null,1);
+}
+refresh();
+</script></body></html>

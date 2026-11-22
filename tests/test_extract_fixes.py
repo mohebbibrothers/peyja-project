@@ -67,9 +67,24 @@ def test_short_keys_need_word_boundary() -> None:
 
 def test_size_and_color_extraction_broadened() -> None:
     s = analyze_caption("رژلب شماره ۱۲ | پالت در تناژ صورتی و نود و burgundy")
-    assert "12" in s.sizes
+    assert "12" in s.shades  # «شماره ۱۲» = شید — نه رنگ، نه سایز
+    assert "12" not in s.sizes
     assert "صورتی" in s.colors
     assert "نود" in s.colors
     assert "burgundy" in s.colors
     s2 = analyze_caption("ادوپرفیوم ۹۰ میل")
     assert "90" in s2.sizes
+
+
+def test_shade_is_first_class_not_color_not_size() -> None:
+    s = analyze_caption("لیپ گلاس 44کیکو پرطرفدارترین رنگشه")
+    assert "44" in s.shades
+    s2 = analyze_caption("کیکو ۱۷")
+    assert "17" in s2.shades
+    # دام‌ها: این‌ها شید نیستند
+    assert analyze_caption("ماندگاری ۲۴ ساعت").shades == []
+    assert analyze_caption("پالت ۱۲ رنگ سایه").shades == []
+    s3 = analyze_caption("ادوپرفیوم ۹۰ میل")
+    assert "90" not in s3.shades
+    # بدون لنگرِ آرایشی، عددِ برهنه شید نیست
+    assert analyze_caption("کرم ضد آفتاب SPF50 مناسب پوست چرب ۲۵").shades == []
