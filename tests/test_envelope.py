@@ -131,3 +131,23 @@ def test_signature_bare_hex_still_accepted():
         now=1_770_000_000.0,
     )
     assert result.ok
+
+
+def test_no_secret_accepts_unsigned_per_docs():
+    """داک رسمی: secret اختیاری — بدون secret، رویداد بدون امضا باید پذیرفته شود."""
+    result = verify_boxapi_signature(
+        secret="",
+        raw_body=b"{}",
+        signature_header="",
+        timestamp_header="",
+    )
+    assert result.ok
+
+    # اما وقتی secret ست است، نبود هدر امضا = 401
+    rejected = verify_boxapi_signature(
+        secret="whsec_test_secret",
+        raw_body=b"{}",
+        signature_header="",
+        timestamp_header="",
+    )
+    assert not rejected.ok

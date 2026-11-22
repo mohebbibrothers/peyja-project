@@ -36,6 +36,10 @@ def verify_boxapi_signature(
     now: float | None = None,
 ) -> WebhookVerification:
     """بررسی امن امضا — مقایسه‌ی زمان‌امن (timing-safe)."""
+    if not secret:
+        # داک رسمی: secret اختیاری است؛ اگر ست نشده، BoxAPI بدون امضا می‌فرستد
+        # و دریافت‌کننده نباید 401 بدهد. (وقتی secret هست، دریافت بدون امضا = 401)
+        return WebhookVerification(True, "secret تنظیم نشده — امضا بررسی نمی‌شود")
     if not signature_header or not timestamp_header:
         return WebhookVerification(False, "هدر امضا/تایم‌استمپ وجود ندارد")
 
