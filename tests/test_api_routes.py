@@ -57,14 +57,22 @@ def test_webhook_self_heals_on_fresh_db(tmp_path, monkeypatch):
     try:
         now_ms = int(time.time() * 1000)
         event_id = f"reg-{now_ms}"
+        # شکل واقعی طبق داک رسمی: پیام‌ها داخل آرایه‌ی data.messaging[] + امضای sha256=
         body = {
+            "event_id": event_id,
             "event_type": "messaging",
             "account_id": "acc",
             "data": {
-                "sender": {"id": "u1"},
-                "recipient": {"id": "page"},
-                "message": {"mid": event_id, "text": "سلام"},
-                "timestamp": now_ms,
+                "time": now_ms,
+                "id": "page",
+                "messaging": [
+                    {
+                        "sender": {"id": "u1"},
+                        "recipient": {"id": "page"},
+                        "timestamp": now_ms,
+                        "message": {"mid": event_id, "text": "سلام"},
+                    }
+                ],
             },
         }
         raw = json.dumps(body, ensure_ascii=False).encode()
@@ -74,13 +82,39 @@ def test_webhook_self_heals_on_fresh_db(tmp_path, monkeypatch):
             content=raw,
             headers={
                 "Content-Type": "application/json",
-                "X-BoxApi-Signature": sig,
+                "X-BoxApi-Signature": f"sha256={sig}",
                 "X-BoxApi-Timestamp": ts,
                 "X-BoxApi-Event-Id": event_id,
             },
         )
         assert r.status_code == 200
         assert r.json()["status"] == "accepted"
+
+        # پیام باید از دل انولوپ استخراج و ذخیره شده باشد (نه فقط رویداد)
+        import asyncio
+
+        from sqlalchemy import select
+
+        from peyja.models import Message
+
+        factory = dbmod.get_session_factory()
+
+        async def _messages():
+            async with factory() as s:
+                return (await s.execute(select(Message))).scalars().all()
+
+        msgs = asyncio.run(_messages())
+        assert any(m.text == "سلام" and m.direction == "in" for m in msgs)
+
+        # ig_user_id باید از دل انولوپ استخراج و روی مکالمه ثبت شده باشد
+        from peyja.models import Conversation
+
+        async def _convs():
+            async with factory() as s:
+                return (await s.execute(select(Conversation))).scalars().all()
+
+        convs = asyncio.run(_convs())
+        assert any(c.ig_user_id == "u1" for c in convs)
     finally:
         cfg.get_settings.cache_clear()
         dbmod._engine = None

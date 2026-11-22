@@ -404,14 +404,24 @@ async def _selftest_webhook(url: str, host: str, sender: str) -> None:
 
     now_ms = int(_t.time() * 1000)
     event_id = f"selftest-{now_ms}"
+    # شکل واقعی طبق داک رسمی BoxAPI: پیام‌ها داخل آرایه‌ی data.messaging[]؛
+    # امضا با پیشوند sha256= — نسخه‌ی قبلی شکل تختِ دست‌ساز می‌فرستاد که فقط
+    # خودش را تأیید می‌کرد (به همین دلیل باگ انولوپ در selftest گم شد)
     body = {
+        "event_id": event_id,
         "event_type": "messaging",
         "account_id": "selftest-account",
         "data": {
-            "sender": {"id": sender},
-            "recipient": {"id": "17841429538161969"},
-            "message": {"mid": event_id, "text": "پیام آزمایشی حلقه‌ی پیجا"},
-            "timestamp": now_ms,
+            "time": now_ms,
+            "id": "17841429538161969",
+            "messaging": [
+                {
+                    "sender": {"id": sender},
+                    "recipient": {"id": "17841429538161969"},
+                    "timestamp": now_ms,
+                    "message": {"mid": event_id, "text": "پیام آزمایشی حلقه‌ی پیجا"},
+                }
+            ],
         },
     }
     raw = json.dumps(body, ensure_ascii=False).encode()
@@ -419,7 +429,7 @@ async def _selftest_webhook(url: str, host: str, sender: str) -> None:
 
     headers = {
         "Content-Type": "application/json",
-        "X-BoxApi-Signature": sig,
+        "X-BoxApi-Signature": f"sha256={sig}",
         "X-BoxApi-Timestamp": ts,
         "X-BoxApi-Event-Id": event_id,
     }

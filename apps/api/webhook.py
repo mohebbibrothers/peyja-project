@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 import time
 from typing import Any
 
@@ -22,6 +23,7 @@ router = APIRouter(tags=["webhooks"])
 # حافظه‌ی کوتاه‌مدت event_id برای dedup سریع (DB هم مرجع نهایی است)
 _seen_events: dict[str, float] = {}
 _DEDUP_TTL = 3600.0
+_log = logging.getLogger("peyja.webhook")
 
 _schema_ready = False
 
@@ -60,6 +62,8 @@ async def boxapi_webhook(
     settings = get_settings()
     raw = await request.body()
 
+    # احراز امضا — طبق داک رسمی: HMAC-SHA256 روی «{timestamp}.{raw_body}»؛
+    # هدر شامل پیشوند sha256= و timestamp بر حسب ثانیه‌ی یونیکس
     verification = verify_boxapi_signature(
         secret=settings.boxapi_webhook_secret,
         raw_body=raw,
@@ -68,19 +72,31 @@ async def boxapi_webhook(
         tolerance_seconds=settings.webhook_tolerance_seconds,
     )
     if not verification.ok:
+        # بدون این لاگ، رد شدن رویدادهای واقعی در عملیات نامرئی می‌ماند
+        _log.warning(
+            "webhook رد شد: %s (signature=%s… timestamp=%s secret=%s)",
+            verification.reason,
+            (x_boxapi_signature or "")[:16] or "-",
+            x_boxapi_timestamp or "-",
+            "set" if settings.boxapi_webhook_secret else "unset",
+        )
         raise HTTPException(status_code=401, detail=verification.reason)
 
-    event_id = x_boxapi_event_id or ""
+    try:
+        payload = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="بدنه باید JSON معتبر باشد") from None
+    event_type = str(payload.get("event_type", "unknown"))
+
+    # event_id طبق داک: هدر X-BoxApi-Event-Id یا فیلد event_id بدنه (که همیشه می‌آید)
+    event_id = x_boxapi_event_id or str(payload.get("event_id") or "")
     if not event_id:
-        raise HTTPException(status_code=400, detail="X-BoxApi-Event-Id الزامی است")
+        raise HTTPException(status_code=400, detail="event_id (هدر یا بدنه) الزامی است")
 
     _prune_seen()
     if event_id in _seen_events:
         return {"status": "duplicate"}
     _seen_events[event_id] = time.time()
-
-    payload = await request.json()
-    event_type = str(payload.get("event_type", "unknown"))
 
     await _ensure_schema_once()
     factory = get_session_factory()
@@ -92,16 +108,16 @@ async def boxapi_webhook(
             return {"status": "duplicate"}
 
         # طبقه‌بندی + ثبت پیام‌های ورودی (حلقه‌ی رسمی)
-        from peyja.loop.dispatcher import classify_event, record_inbound
+        # قرارداد BoxAPI: پیام‌ها داخل آرایه‌ی data.messaging[] — چند رویداد در یک payload
+        from peyja.loop.dispatcher import classify_events, record_inbound
 
-        classified = classify_event(payload)
-        await record_inbound(session, classified)
+        classified_list = classify_events(payload)
+        for classified in classified_list:
+            await record_inbound(session, classified)
 
-        processed = classified.kind in (
-            "action_result",
-            "inbound_message",
-            "echo_message",
-            "comment",
+        processed = any(
+            c.kind in ("action_result", "inbound_message", "echo_message", "comment")
+            for c in classified_list
         )
         session.add(
             WebhookEvent(
@@ -119,9 +135,13 @@ async def boxapi_webhook(
     # (BoxAPI در صورت timeout تا ۳ بار retry می‌کند؛ پاسخ سریع = بدون پاسخ تکراری)
     from peyja.loop.reply import build_auto_reply, send_auto_reply
 
-    reply = build_auto_reply(classified, auto_reply_text=settings.auto_reply_text)
-    if reply:
-        background_tasks.add_task(send_auto_reply, reply)
+    # برای هر فرستنده فقط یک پاسخ خودکار (چند پیام در یک payload = یک پاسخ)
+    replied_to: set[str] = set()
+    for classified in classified_list:
+        reply = build_auto_reply(classified, auto_reply_text=settings.auto_reply_text)
+        if reply and reply.recipient_id not in replied_to:
+            replied_to.add(reply.recipient_id)
+            background_tasks.add_task(send_auto_reply, reply)
 
     return {"status": "accepted", "event_type": event_type}
 

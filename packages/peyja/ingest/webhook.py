@@ -51,7 +51,10 @@ def verify_boxapi_signature(
         )
 
     message = f"{timestamp_header}.".encode() + raw_body
+    # فرمت رسمی BoxAPI: هدر = «sha256=» + hex — bare hex هم (سازگاری) پذیرفته می‌شود
     sig = signature_header.strip().lower()
+    if sig.startswith("sha256="):
+        sig = sig.removeprefix("sha256=")
 
     for key in _candidate_keys(secret):
         expected = hmac.new(key.encode(), message, hashlib.sha256).hexdigest()

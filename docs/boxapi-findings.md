@@ -64,3 +64,66 @@
 - [ ] نرخ واقعی مصرف/شکست در عملیات
 - [ ] نتایج حل حلقه‌ی رسمی با وب‌هوک واقعی
 - [ ] مستندسازی event_typeهای مشاهده‌شده در عمل
+
+---
+
+## ۶) قرارداد کامل وب‌هوک (Webhook) — مطالعه‌ی دقیق مستند رسمی (۱۴۰۵/۰۹/۰۴)
+
+منبع: `https://boxapi.ir/docs/instagram/webhook/`
+
+### قالب payload (انولوپ واقعی — **حیاتی**)
+
+پیام‌ها داخل **آرایه‌ی `data.messaging[]`** می‌آیند، نه `data.sender/data.message`:
+
+```json
+{
+  "event_id": "client_ig_143648254824356",
+  "event_type": "messaging",
+  "account_id": "4b9b0a94-a990-47b6-be62-bc6f1fcbe265",
+  "data": {
+    "time": 1785081317446,
+    "id": "17841427003354842",
+    "messaging": [
+      {
+        "sender": {"id": "66295627926"},
+        "recipient": {"id": "17841427003354842"},
+        "timestamp": 1785081317081,
+        "message": {"mid": "a]WYnOQqNTpxL3Aa-Qo7EF03BgAAAAAA", "text": "سلام"}
+      }
+    ]
+  }
+}
+```
+
+- چند آیتم در یک `messaging[]` ممکن است؛ `sender.id` همان `recipient_id` برای `send_message` است.
+- postback: `message` جای خود را به `postback.title` می‌دهد (در dispatcher با fallback پشتیبانی می‌شود).
+- event_type ها: `messaging` | `messaging_postbacks` | `comments` | `mentions` + `action.*` (نتایج 202).
+
+### احراز امضا (HMAC)
+
+- `X-BoxApi-Signature = "sha256=" + HMAC_SHA256(f"{timestamp}.{raw_body}", secret)`
+- `X-BoxApi-Timestamp =` UNIX **ثانیه** (`1770000000`)
+- `X-BoxApi-Event-Id =` کپی `event_id` بدنه (**در HMAC نیست**)
+- بدنه‌ی امضاشده: همان raw body با `JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES` (بایت‌به‌بایت).
+- **پیشوند `sha256=` در مقایسه الزامی است** (باگ واقعی شماره‌ی ۲).
+
+### Webhook Secret (اختیاری!)
+
+- Secret **فقط توسط BoxAPI ساخته می‌شود**: پنل → تنظیمات API رسمی اینستاگرام → «نمایش Webhook Secret».
+- **اگر ست نشده باشد، BoxAPI هیچ هدر امضایی نمی‌فرستد** — دریافت‌کننده نباید 401 بدهد (باگ واقعی شماره‌ی ۳).
+- اگر ست باشد: درخواست بدون امضا/امضای نامعتبر **باید 401** بگیرد.
+- مقدار باید با `WEBHOOK_SECRET` در `.env` مو‌به‌مو یکی باشد (`whsec_a584…`).
+
+### قواعد تحویل
+
+- حداکثر ۳ تلاش مجدد، هر ۶۰ ثانیه → 2xx سریع بده (پاسخ کند = retry = پاسخ تکراری).
+- `event_id` برای dedupe (حافظه‌ی کوتاه + DB).
+- GET روی آدرس وب‌هوک مجاز است (health probe ما همین است).
+
+### سه باگی که این مطالعه آشکار کرد (ریشه‌ی عدم دریافت پاسخ خودکار)
+
+| # | باگ | نشانه | رفع |
+|---|-----|-------|-----|
+| ۱ | انولوپ `data.messaging[]` نادیده گرفته می‌شد | `ig_user_id=None` → بدون ثبت/پاسخ | `classify_events()` |
+| ۲ | مقایسه‌ی امضا بدون برداشتن `sha256=` | 401 برای همه‌ی رویدادهای واقعی | `verify` strip prefix |
+| ۳ | secret ناهماهنگ/نبود → 401 بی‌صدا | رویداد unsigned رد می‌شد | لاگ هشدار + راهنمای پنل |

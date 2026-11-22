@@ -36,37 +36,57 @@ def _parse_ts(ms: Any) -> dt.datetime | None:
         return None
 
 
-def classify_event(payload: dict[str, Any]) -> ClassifiedEvent:
-    """یک رویداد وب‌هوک را طبقه‌بندی می‌کند."""
+def _classify_item(
+    account_id: str | None, item: dict[str, Any], payload: dict[str, Any]
+) -> ClassifiedEvent:
+    """یک آیتم از data.messaging[] (یا شکل تخت قدیمی) را طبقه‌بندی می‌کند."""
+    sender = item.get("sender") or item.get("from") or {}
+    recipient = item.get("recipient") or {}
+    msg = item.get("message") or item.get("postback") or {}
+    ig_user_id = str(sender.get("id") or sender.get("username") or "") or None
+    is_echo = bool(msg.get("is_echo")) or (
+        bool(recipient.get("id")) and sender.get("id") == recipient.get("id")
+    )
+    return ClassifiedEvent(
+        kind="echo_message" if is_echo else "inbound_message",
+        account_id=account_id,
+        ig_user_id=ig_user_id,
+        text=msg.get("text") or msg.get("title"),
+        mid=msg.get("mid") or msg.get("message_id"),
+        at=_parse_ts(item.get("timestamp")),
+        raw=payload,
+    )
+
+
+def classify_events(payload: dict[str, Any]) -> list[ClassifiedEvent]:
+    """همه‌ی رویدادهای یک payload وب‌هوک را طبقه‌بندی می‌کند.
+
+    طبق قرارداد رسمی BoxAPI پیام‌ها داخل آرایه‌ی data.messaging[] می‌آیند
+    (چند پیام در یک payload ممکن است). شکل تخت قدیمی هم برای سازگاری پذیرفته می‌شود.
+    """
     event_type = str(payload.get("event_type", ""))
     account_id = payload.get("account_id")
     data = payload.get("data") or {}
 
     if event_type.startswith("action."):
-        return ClassifiedEvent("action_result", account_id, raw=payload)
+        return [ClassifiedEvent("action_result", account_id, raw=payload)]
 
     if event_type in ("messaging", "message", "messaging_postbacks", "echo"):
-        sender = data.get("sender") or data.get("from") or {}
-        recipient = data.get("recipient") or {}
-        msg = data.get("message") or data.get("postback") or {}
-        ig_user_id = str(sender.get("id") or sender.get("username") or "") or None
-        is_echo = bool(msg.get("is_echo")) or (
-            bool(recipient.get("id")) and sender.get("id") == recipient.get("id")
-        )
-        return ClassifiedEvent(
-            kind="echo_message" if is_echo else "inbound_message",
-            account_id=account_id,
-            ig_user_id=ig_user_id,
-            text=msg.get("text") or msg.get("title"),
-            mid=msg.get("mid") or msg.get("message_id"),
-            at=_parse_ts(data.get("timestamp")),
-            raw=payload,
-        )
+        items = data.get("messaging")
+        if not isinstance(items, list):
+            items = [data]
+        return [_classify_item(account_id, item, payload) for item in items]
 
     if event_type in ("comments", "mentions"):
-        return ClassifiedEvent("comment", account_id, raw=payload)
+        return [ClassifiedEvent("comment", account_id, raw=payload)]
 
-    return ClassifiedEvent("unknown", account_id, raw=payload)
+    return [ClassifiedEvent("unknown", account_id, raw=payload)]
+
+
+def classify_event(payload: dict[str, Any]) -> ClassifiedEvent:
+    """سازگاری با قبل: اولین رویداد طبقه‌بندی‌شده."""
+    events = classify_events(payload)
+    return events[0] if events else ClassifiedEvent("unknown", raw=payload)
 
 
 async def record_inbound(session: AsyncSession, ev: ClassifiedEvent) -> None:

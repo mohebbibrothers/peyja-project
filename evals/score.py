@@ -7,6 +7,7 @@
   - قیمت:   ≥ ۸۵٪ (Exact Match + درصد خطای مبلغ)
   - دسته/ویژگی: ≥ ۷۵٪
 """
+
 from __future__ import annotations
 
 import argparse
@@ -21,7 +22,9 @@ def price_exact_match(gold_price: int | None, pred_price: int | None) -> bool:
     return gold_price == pred_price
 
 
-def price_within_tolerance(gold_price: int | None, pred_price: int | None, tol: float = 0.02) -> bool:
+def price_within_tolerance(
+    gold_price: int | None, pred_price: int | None, tol: float = 0.02
+) -> bool:
     """خطای کمتر از ۲٪ = قابل‌قبول تجاری (اختلاف تخفیف/سایز)."""
     if gold_price is None or pred_price is None:
         return gold_price == pred_price
@@ -48,7 +51,14 @@ def score(gold: list[dict[str, Any]], preds: dict[str, dict[str, Any]]) -> dict[
         if (sample.get("category") or "") == (pred.get("category") or ""):
             cat_ok += 1
         else:
-            errors.append({"id": key, "type": "category", "gold": sample.get("category"), "pred": pred.get("category")})
+            errors.append(
+                {
+                    "id": key,
+                    "type": "category",
+                    "gold": sample.get("category"),
+                    "pred": pred.get("category"),
+                }
+            )
 
         g_attrs = set(map(str, sample.get("colors", []) + sample.get("sizes", [])))
         p_attrs = set(map(str, pred.get("colors", []) + pred.get("sizes", [])))

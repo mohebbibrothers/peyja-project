@@ -5,6 +5,7 @@
 FastAPI اپ ASGI است و Passenger فقط WSGI می‌فهمد ← a2wsgi پل استاندارد است.
 ⚠️ sys.path: مسیر ریشه‌ی اپ باید صریح اضافه شود (cwd تضمین‌شده نیست).
 """
+
 import os
 import sys
 
