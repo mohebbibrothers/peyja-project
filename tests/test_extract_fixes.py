@@ -56,7 +56,9 @@ def test_body_spray_is_deo_not_perfume() -> None:
     assert _guess_category("اسپری داو ضدتعریق") == "deo_fragrance"
     assert _guess_category("مام قارچی و لوسیون بدن") == "deo_fragrance"
     assert _guess_category("ادوپرفیوم ۹۰ میل") == "perfume"  # عطر واقعی هنوز perfume
-    assert _guess_category("بادی اسپلش بث اند بادی") == "hygiene"  # تأییدِ gold-033
+    assert (
+        _guess_category("بادی اسپلش بث اند بادی") == "deo_fragrance"
+    )  # تصحیحِ بازبینی (خطای تأییدِ دور ۱)
 
 
 def test_short_keys_need_word_boundary() -> None:

@@ -82,7 +82,7 @@
   {
     "id": "adv-017",
     "caption": "بادی اسپلش بث اند بادی 🥹",
-    "expected": {"category": "hygiene"}
+    "expected": {"category": "deo_fragrance"}
   },
   {
     "id": "adv-018",
@@ -98,5 +98,45 @@
     "id": "adv-020",
     "caption": "سه محصول نجات بخش روتینم!🤍 ۱.دور چشم نامبوزین ۲.اسنس نامبوزین ۳.ابرسان فارم استی",
     "expected": {"min_products": 3, "is_multi_product": true}
+  },
+  {
+    "id": "adv-021",
+    "caption": "تونر صورت کلینیک برای پوست‌های چرب",
+    "expected": {"category": "skincare", "brand": "کلینیک"}
+  },
+  {
+    "id": "adv-022",
+    "caption": "فوندیشن میبلین با پوشش بالا",
+    "expected": {"category": "makeup", "brand": "میبلین"}
+  },
+  {
+    "id": "adv-023",
+    "caption": "کانسیلر شیگلم محو‌کننده‌ی تیرگی",
+    "expected": {"category": "makeup", "brand": "شیگلم"}
+  },
+  {
+    "id": "adv-024",
+    "caption": "ضد چروک کلینیک برای دور چشم",
+    "expected": {"category": "skincare"}
+  },
+  {
+    "id": "adv-025",
+    "caption": "لاک ناخن قرمز",
+    "expected": {"category": "makeup"}
+  },
+  {
+    "id": "adv-026",
+    "caption": "ماسک موی ترمیم‌کننده برای موهای آسیب‌دیده",
+    "expected": {"category": "haircare"}
+  },
+  {
+    "id": "adv-027",
+    "caption": "ضدعفونی کننده‌ی دست کامان",
+    "expected": {"category": "hygiene"}
+  },
+  {
+    "id": "adv-028",
+    "caption": "ماسک صورت آبرسان برای پوست خشک",
+    "expected": {"category": "skincare"}
   }
 ]

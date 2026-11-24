@@ -226,7 +226,7 @@ TERM_CATEGORY: dict[str, str] = {
     "اسپری": "deo_fragrance",
     "خوشبو کننده": "deo_fragrance",
     "خوشبوکننده": "deo_fragrance",
-    "بادی اسپلش": "hygiene",  # طبق تأیید انسانیِ gold-033
+    "بادی اسپلش": "deo_fragrance",  # تصحیحِ بازبینی: جزوِ خانواده‌ی دئو (خطایِ تأییدِ انسانی)
     "شامپو بدن": "hygiene",
     "شامپو بدون سولفات": "haircare",
     "شامپو": "haircare",
@@ -331,6 +331,11 @@ def _all_matches(pats: list[tuple[re.Pattern[str], str]], t: str) -> list[tuple[
                 found.append((m.start(), m.end(), original))
     found.sort(key=lambda x: (x[0], -(x[1] - x[0])))
     return found
+
+
+def matched_terms(text: str, terms: list[str]) -> list[str]:
+    """کدام‌یک از واژه‌های داده‌شده در متن هستند (مرزِ واژه + مدارای فاصله/جمع)."""
+    return [h[2] for h in _all_matches(_compile(terms), fold(text))]
 
 
 def find_brand(text: str) -> str | None:

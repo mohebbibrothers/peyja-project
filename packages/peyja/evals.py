@@ -27,6 +27,24 @@ CATEGORY_VOCAB = {
     "other",
 }
 STOCK_VOCAB = {"in_stock", "out_of_stock", "on_request", "unknown"}
+SPLIT_VOCAB = {"dev", "test"}  # قانون ۵: داده‌ی tuning (dev) ≠ داده‌ی ارزیابیِ نهایی (test)
+
+# خانواده‌های معناییِ محصول — سپرِ «خطای انسانی»: همه‌ی اعضا باید یک دسته داشته باشند.
+# (همین سازوکار، خطایِ تأییدِ «بادی اسپلش = بهداشتی» را پیش از تصحیحِ شما فریاد می‌زد.)
+FAMILY_TERMS: dict[str, list[str]] = {
+    "deo_fragrance": [
+        "بادی اسپلش",
+        "دئودورانت",
+        "ضد تعریق",
+        "ضدتعریق",
+        "مام قارچی",
+        "مام",
+        "لوسیون بدن",
+        "خوشبو کننده",
+        "خوشبوکننده",
+    ],
+    "perfume": ["ادوپرفیوم", "ادکلن", "عطر"],
+}
 GATE_PRICE = 0.85
 GATE_CATEGORY = 0.75
 GATE_ATTRIBUTE = 0.75
@@ -152,15 +170,25 @@ def _product_match(g: dict[str, Any], p: dict[str, Any]) -> bool:
 
 
 def score_products(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    """نکته‌ی ۱ و ۲: بازیابیِ محصولاتِ چندمحصوله + دقتِ نام/برندِ تک‌محصوله‌ها."""
+    """نکته‌ی ۱ و ۲: بازیابیِ محصولاتِ چندمحصوله + دقتِ نام/برندِ تک‌محصوله‌ها.
+
+    product_recall = سهمِ محصولاتِ طلایی که موتور پیدا کرد (گم‌شدن = گناهِ بزرگ).
+    product_precision = سهمِ تکه‌هایِ پیش‌بینی که واقعاً محصول بودند (تکه‌ی زائد = آفتِ کاتالوگ).
+    """
     multi = [s for s in items if s.get("products")]
     found = total = 0
+    matched_pred = pred_total = 0
     for s in multi:
         p_prods = (preds.get(s["id"]) or {}).get("products") or []
-        for g in s["products"]:
+        g_prods = s["products"]
+        for g in g_prods:
             total += 1
             if any(_product_match(g, p) for p in p_prods):
                 found += 1
+        for p in p_prods:
+            pred_total += 1
+            if any(_product_match(g, p) for g in g_prods):
+                matched_pred += 1
 
     named = [s for s in items if s.get("product_name")]
     name_hits = sum(
@@ -177,6 +205,7 @@ def score_products(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]]
     return {
         "product_labeled": total,
         "product_recall": round(found / total, 4) if total else 0,
+        "product_precision": round(matched_pred / pred_total, 4) if pred_total else 0,
         "name_labeled": len(named),
         "name_accuracy": round(name_hits / len(named), 4) if named else 0,
         "brand_labeled": len(branded),
@@ -184,8 +213,103 @@ def score_products(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]]
     }
 
 
+def consistency_report(samples: list[dict[str, Any]]) -> dict[str, Any]:
+    """سپرِ «خطای انسانیِ» برچسب‌زنی — تضادهای متقاطع را بدونِ رحم پیدا می‌کند.
+
+    سه سطح:
+    1. تضادِ واژه‌ای: یک واژه‌ی محصول در دو نمونه دسته‌های متفاوت گرفته.
+    2. تضادِ خانوادگی: اعضای یک خانواده (دئو/عطر …) دسته‌های متناقض دارند —
+       دقیقاً همان چیزی که «بادی اسپلش=بهداشتی» را لو می‌داد.
+    3. هشدار: واژه‌ی محصول هست ولی دسته‌ی null — «شاید محصولی هست که برچسب نخورده».
+    """
+    from peyja.extract.catalog import matched_terms
+
+    term_cats: dict[str, set[str]] = {}
+    fam_cats: dict[str, set[str]] = {}
+    null_with_term: list[str] = []
+    for s in samples:
+        sid = str(s.get("id") or "?")
+        text = (
+            (s.get("caption") or "")
+            + " "
+            + " ".join(str(p.get("name") or "") for p in s.get("products") or [])
+        )
+        gold_cats = set(s.get("categories") or [])
+        if s.get("category"):
+            gold_cats.add(str(s["category"]))
+        for p in s.get("products") or []:
+            if p.get("category"):
+                gold_cats.add(str(p["category"]))
+        fam_hits = {fam: matched_terms(text, terms) for fam, terms in FAMILY_TERMS.items()}
+        for fam, hits in fam_hits.items():
+            if not hits:
+                continue
+            if gold_cats:
+                fam_cats.setdefault(fam, set()).update(gold_cats)
+            else:
+                null_with_term.append(f"{sid}: واژه‌های {hits} از خانواده‌ی {fam} ولی دسته null")
+            for h in hits:
+                if gold_cats:
+                    term_cats.setdefault(h, set()).update(gold_cats)
+
+    term_conflicts = [
+        f"تضادِ واژه‌ای «{t}»: دسته‌های {sorted(c)}" for t, c in term_cats.items() if len(c) > 1
+    ]
+    family_conflicts = [
+        f"تضادِ خانواده‌ی {fam}: دسته‌های {sorted(c)}" for fam, c in fam_cats.items() if len(c) > 1
+    ]
+    return {
+        "term_conflicts": sorted(term_conflicts),
+        "family_conflicts": sorted(family_conflicts),
+        "null_with_term": sorted(null_with_term),
+        "families": {fam: sorted(c) for fam, c in fam_cats.items()},
+    }
+
+
+def calibration_report(
+    gold: list[dict[str, Any]], preds: dict[str, dict[str, Any]]
+) -> dict[str, Any]:
+    """کالیبراسیونِ اعتماد: آیا confidence بالا = خطای کمتر؟ (گزارشی — بدون گیت)."""
+    bins: dict[str, list[bool]] = {"<۰.۴": [], "۰.۴–۰.۷": [], "≥۰.۷": []}
+    for s in gold:
+        gold_cats = s.get("categories") or ([s["category"]] if s.get("category") else [])
+        if not gold_cats:
+            continue
+        p = preds.get(s["id"]) or {}
+        c = float(p.get("confidence") or 0.0)
+        key = "≥۰.۷" if c >= 0.7 else ("۰.۴–۰.۷" if c >= 0.4 else "<۰.۴")
+        bins[key].append(p.get("category") in gold_cats)
+    return {
+        k: {"n": len(v), "accuracy": round(sum(v) / len(v), 3) if v else None}
+        for k, v in bins.items()
+    }
+
+
+def lexicon_audit(samples: list[dict[str, Any]]) -> dict[str, Any]:
+    """ضدِ بیش‌برازش (قانون ۵): کلیدهایِ مرده/تک‌نمونه‌ایِ واژگانِ دسته را افشا می‌کند."""
+    from peyja.extract.pipeline import CATEGORY_MAP, _fold_fa, _key_hits
+
+    counts: dict[str, int] = {}
+    for key in CATEGORY_MAP:
+        n = 0
+        for s in samples:
+            text = (s.get("caption") or "").replace("\u200c", " ")
+            if _key_hits(_fold_fa(text), _fold_fa(key)):
+                n += 1
+        counts[key] = n
+    return {
+        "dead_keys": sorted(k for k, n in counts.items() if n == 0),
+        "single_sample_keys": sorted(k for k, n in counts.items() if n == 1),
+        "counts": counts,
+    }
+
+
 def score(gold: list[dict[str, Any]], preds: dict[str, dict[str, Any]]) -> dict[str, Any]:
-    """نمره‌ی کل + تفکیک مصنوعی/واقعی (اگر نمونه‌های synthetic علامت‌خورده باشند)."""
+    """نمره‌ی کل + تفکیک‌ها: مصنوعی/واقعی و — قانون ۵ — dev/test.
+
+    نمونه‌های `split=test` هرگز در tuning موتور دیده نمی‌شوند؛ نمره‌شان «عددِ رسمی»
+    است و dev_only همان نمره‌ی خوش‌بینانه‌ی tuning است (گزارشِ صادقانه).
+    """
     result = _score_subset(gold, preds)
     result.update(score_products(gold, preds))
     synthetic = [s for s in gold if s.get("synthetic")]
@@ -193,6 +317,11 @@ def score(gold: list[dict[str, Any]], preds: dict[str, dict[str, Any]]) -> dict[
     if synthetic and real:
         result["real_only"] = _score_subset(real, preds)
         result["synthetic_only"] = _score_subset(synthetic, preds)
+    dev = [s for s in gold if s.get("split", "dev") == "dev"]
+    test = [s for s in gold if s.get("split") == "test"]
+    if test:
+        result["dev_only"] = {**_score_subset(dev, preds), **score_products(dev, preds)}
+        result["test_only"] = {**_score_subset(test, preds), **score_products(test, preds)}
     return result
 
 
@@ -233,6 +362,12 @@ def validate_gold(samples: list[dict[str, Any]]) -> list[str]:
         st = s.get("stock_state")
         if st is not None and st not in STOCK_VOCAB:
             issues.append(f"{sid}: وضعیت موجودی ناشناخته «{st}»")
+        if s.get("split", "dev") not in SPLIT_VOCAB:
+            issues.append(f"{sid}: split ناشناخته «{s.get('split')}»")
+    # سپرِ خطای انسانی: تضادهای برچسبی باید پیش از نمره‌دهی لو بروند (قانون ۵)
+    rep = consistency_report(samples)
+    issues.extend(rep["term_conflicts"])
+    issues.extend(rep["family_conflicts"])
     return issues
 
 

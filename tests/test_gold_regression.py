@@ -41,8 +41,20 @@ def test_gold_score_floors_locked() -> None:
     assert r["attribute_accuracy"] >= 0.85, f"ویژگی: {r['attribute_accuracy']}"
     # نکته‌ی ۱ و ۲ کاربر: بازیابیِ محصولاتِ چندمحصوله + نام/برند — قفلِ کیفیت
     assert r["product_recall"] >= 0.95, f"بازیابی محصول: {r['product_recall']}"
+    assert r["product_precision"] >= 0.85, f"دقتِ تکه‌های محصول: {r['product_precision']}"
     assert r["name_accuracy"] >= 0.90, f"نام محصول: {r['name_accuracy']}"
     assert r["brand_accuracy"] >= 0.95, f"برند: {r['brand_accuracy']}"
+
+
+def test_gold_test_split_gates_when_holdout_exists() -> None:
+    """قانون ۵: اگر نمونه‌ی holdout (split=test) باشد، گیت‌ها روی آن هم باید پاس شوند."""
+    r = _run_gold()
+    t = r.get("test_only")
+    if not t:
+        return  # هنوز holdout جمع‌نشده (بچ ۲) — تا آن زمان این گیت آماده‌به‌کار است
+    assert t["gate_price_pass"], f"گیت قیمتِ holdout: {t['price_within_2pct']}"
+    assert t["gate_category_pass"], f"گیت دسته‌ی holdout: {t['category_accuracy']}"
+    assert t["gate_attribute_pass"], f"گیت ویژگیِ holdout: {t['attribute_accuracy']}"
 
 
 def test_gold_dataset_is_valid() -> None:

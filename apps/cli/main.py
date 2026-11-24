@@ -627,6 +627,32 @@ def gold_score(
         f"گیت ویژگی (≥۷۵٪): {'✅ PASS' if result['gate_attribute_pass'] else '❌ FAIL'} "
         f"({result['attribute_accuracy']:.0%} از {result['attribute_labeled']} نمونه‌ی برچسب‌دار)"
     )
+    # ── گزارش‌های «منتقدِ بی‌رحم» (قانون ۵) ─────────────────────────────
+    from peyja.evals import calibration_report, consistency_report, lexicon_audit
+
+    rep = consistency_report(gold_data)
+    typer.echo()
+    typer.echo("— سپرِ خطای انسانی (سازگاریِ برچسب‌ها) —")
+    conflicts = rep["term_conflicts"] + rep["family_conflicts"]
+    if conflicts:
+        for x in conflicts:
+            typer.echo(f"❌ {x}")
+    else:
+        typer.echo("✅ تضادِ برچسبی نیست")
+    for w in rep["null_with_term"]:
+        typer.echo(f"⚠️ {w}")
+    cal = calibration_report(gold_data, preds)
+    typer.echo(f"— کالیبراسیونِ اعتماد: {json.dumps(cal, ensure_ascii=False)}")
+    audit = lexicon_audit(gold_data)
+    typer.echo(
+        f"— واژگانِ دسته: کلیدِ مرده={audit['dead_keys']} · مشکوکِ تک‌نمونه‌ای={audit['single_sample_keys']}"
+    )
+    if result.get("test_only"):
+        t = result["test_only"]
+        typer.echo(
+            f"— قانون ۵ | holdout («عددِ رسمی»): قیمت {t['price_within_2pct']:.0%} · "
+            f"دسته {t['category_accuracy']:.0%} · ویژگی {t['attribute_accuracy']:.0%}"
+        )
 
 
 if __name__ == "__main__":

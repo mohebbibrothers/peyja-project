@@ -769,6 +769,11 @@ HUMAN_FIXES: dict[int, dict] = {
     # نکته‌ی ۳: بررس، ستونِ موجودی را چک نکرده — این‌ها تا دورِ بعدی «موجودی=تأییدنشده»
     25: {"notes": "چند محصول بدون نام در کپشن (فهرست با کامنت «روتین»)؛ موجودی تأییدنشده"},
     56: {"notes": "پستِ شوخی — بدون محصول؛ موجودی تأییدنشده (نکته‌ی ۳)"},
+    # تصحیحِ بازبینیِ انسانی («ممکنه دچار خطای انسانی بشیم»): بادی اسپلش = دئو، نه بهداشتی
+    30: {
+        "category": "deo_fragrance",
+        "notes": "تصحیحِ بازبینی: بادی اسپلش = دئو (خطایِ تأییدِ دور ۱ — نکته‌ی خطای انسانی)",
+    },
 }
 
 SYNTHETIC_NAMES = ["کرم ضد افتاب", "رژلب مات", "ادوپرفیوم", "شامپو بدون سولفات"]
@@ -790,6 +795,7 @@ def main() -> None:
                 "source_username": "synthetic",
                 "ig_media_id": "REPLACE_ME",
                 "synthetic": True,
+                "split": "dev",
                 "product_name": SYNTHETIC_NAMES[i - 1],
                 **s,
             }
@@ -805,6 +811,7 @@ def main() -> None:
             "id": f"gold-{idx:03d}",
             "source_username": "farmashop_aras",
             "ig_media_id": str(ig_id),
+            "split": "dev",  # قانون ۵: این بچ روی‌شان tuning شده = dev؛ holdout از بچ ۲
             "caption": caption or "",
             "price_toman": price,
             "old_price_toman": old,
