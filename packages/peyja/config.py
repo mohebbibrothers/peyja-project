@@ -47,6 +47,16 @@ class Settings(BaseSettings):
     extract_confidence_tau: float = 0.75  # بالای این ← تأییدشده
     extract_review_floor: float = 0.4  # زیر این ← رد/لاگ شکست
 
+    # ── مغزِ هوشمند (LLM/VLM) — مدلِ محلیِ Qwen روی سرورِ خودمان ────────────────
+    vlm_provider: str = "qwen-local"  # "qwen-local" (مغزِ اصلی) | "boxapi" (پشتیبان)
+    qwen_base_url: str = "http://10.1.231.22:8000/v1"
+    qwen_model: str = "qwen3.6-35b-a3b"
+    qwen_api_key: str = ""  # سرورِ داخلی معمولاً بدون کلید
+    qwen_timeout: float = 120.0
+    qwen_max_retries: int = 3
+    qwen_json_mode: bool = False  # response_format=json_object اگر سرور پشتیبانی کند
+    qwen_context_length: int = 131072
+
     # ── بودجه‌ها ───────────────────────────────────────────────────────────────
     crawl_max_requests: int = 300
     crawl_max_downloads: int = 120

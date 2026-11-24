@@ -55,7 +55,9 @@ async def _extract(page_id: int) -> None:
     await ensure_schema()
     factory = get_session_factory()
     async with factory() as session:
-        pipeline = ExtractionPipeline(session)
+        from peyja.provider.llm import get_ai_provider
+
+        pipeline = ExtractionPipeline(session, ai=get_ai_provider())
         stats = await pipeline.run_for_page(page_id)
         await session.commit()
         typer.echo(json.dumps(stats, ensure_ascii=False, indent=2))
@@ -87,7 +89,9 @@ async def _build(username: str, out: Path) -> None:
     async with factory() as session:
         crawler = Crawler(session, provider)
         crawl_stats = await crawler.crawl_page(username)
-        pipeline = ExtractionPipeline(session)
+        from peyja.provider.llm import get_ai_provider
+
+        pipeline = ExtractionPipeline(session, ai=get_ai_provider())
         extract_stats = await pipeline.run_for_page(
             (await session.execute(select(Page).where(Page.username == username))).scalar_one().id
         )
@@ -209,6 +213,21 @@ async def _doctor() -> None:
 
     settings = get_settings()
     checks: list[tuple[str, bool, str]] = []
+
+    # ── مغزِ هوشمند (Qwen محلی) — قلبِ AI سرور ─────────────────────────────
+    try:
+        from peyja.provider.llm import QwenLocalProvider
+
+        qwen = QwenLocalProvider()
+        h = await qwen.health()
+        if h.get("ok"):
+            models = ", ".join(h.get("models", [])[:3]) or "—"
+            checks.append(("مغزِ هوشمند (Qwen محلی)", True, f"{models} @ {settings.qwen_base_url}"))
+        else:
+            checks.append(("مغزِ هوشمند (Qwen محلی)", False, str(h.get("error"))[:90]))
+        await qwen.aclose()
+    except Exception as e:
+        checks.append(("مغزِ هوشمند (Qwen محلی)", False, str(e)[:90]))
 
     checks.append(
         (
@@ -600,6 +619,55 @@ def gold_sheet(
     html_out.write_text(render_verification_html(samples), encoding="utf-8")
     typer.echo(f"✅ {len(samples)} نمونه معتبر — برگه‌ی متنی: {out}")
     typer.echo(f"   برگه‌ی تعاملی (تیک‌خور): {html_out} — در مرورگر باز کنید")
+
+
+@app.command("vlm-gold")
+def vlm_gold(
+    gold: Path = typer.Option(Path("evals/gold-100/samples.json"), "--gold"),
+    out: Path = typer.Option(Path("out/vlm-predictions.json"), "--out"),
+    base_url: str = typer.Option("", "--base-url", help="جایگزینیِ base_url مغز"),
+    model: str = typer.Option("", "--model", help="جایگزینیِ نامِ مدل"),
+    limit: int = typer.Option(0, "--limit", help="فقط N نمونه‌ی اول (۰ = همه)"),
+    fresh: bool = typer.Option(False, "--fresh", help="نادیده‌گرفتنِ کشِ قبلی"),
+) -> None:
+    """بنچ‌مارکِ مغزِ هوشمند (Qwen محلی) روی gold + مقایسه با موتورِ آفلاین (قانون ۵)."""
+    from peyja.provider.llm import QwenLocalProvider
+    from peyja.vlm_bench import run_vlm_benchmark
+
+    samples = json.loads(gold.read_text(encoding="utf-8"))
+    provider = QwenLocalProvider(base_url=base_url or None, model=model or None)
+    report = asyncio.run(run_vlm_benchmark(samples, out, provider, fresh=fresh, limit=limit))
+    if not report.get("ok"):
+        typer.echo(f"❌ {report.get('error')}")
+        typer.echo(
+            "راهنما: این فرمان باید از ماشینِ داخلِ شبکه‌ی سرورِ مدل اجرا شود "
+            "(مثلا `curl -s http://10.1.231.22:8000/v1/models`)؛ "
+            "base-url و مدل را با --base-url / --model می‌توانید عوض کنید."
+        )
+        raise typer.Exit(code=1)
+    typer.echo(
+        json.dumps(
+            {k: v for k, v in report.items() if k not in ("comparison",)},
+            ensure_ascii=False,
+            indent=2,
+        )
+    )
+    comp = (report.get("comparison") or {}).get("offline")
+    if comp:
+        typer.echo()
+        typer.echo("— مقایسه با موتورِ آفلاین (regex) —")
+        for key in (
+            "price_within_2pct",
+            "category_accuracy",
+            "attribute_accuracy",
+            "product_recall",
+            "name_accuracy",
+            "brand_accuracy",
+        ):
+            ov, vv = comp.get(key), (report.get("vlm_score") or {}).get(key)
+            f = lambda x: "—" if x is None else f"{x:.0%}"  # noqa: E731
+            typer.echo(f"  {key}: آفلاین={f(ov)} · VLM={f(vv)}")
+    typer.echo("📄 گزارشِ کامل: out/vlm-report.md")
 
 
 @app.command("gold-score")

@@ -37,7 +37,7 @@ from peyja.models import (
     Variant,
     utcnow,
 )
-from peyja.provider.boxapi_ai import BoxApiAiProvider
+from peyja.provider.llm import AiProvider
 
 PIPELINE_VERSION = "spine-v0.2"
 
@@ -193,7 +193,7 @@ CATEGORY_FAMILY = {
 
 
 class ExtractionPipeline:
-    def __init__(self, session: AsyncSession, ai: BoxApiAiProvider | None = None):
+    def __init__(self, session: AsyncSession, ai: AiProvider | None = None):
         self.session = session
         self.ai = ai
         self.settings = get_settings()
@@ -238,7 +238,7 @@ class ExtractionPipeline:
         )
         if need_vlm:
             vlm_calls = 1
-            vlm = await self._vlm_extract_safe(item, caption_text)
+            vlm = await self._vlm_extract_safe(caption_text)
 
         price_toman, method, confidence = _merge_price(regex_price, vlm, signals.prices.on_request)
 
@@ -424,9 +424,8 @@ class ExtractionPipeline:
         )
 
     # ── استخراج ساخت‌یافته‌ی VLM با retry هوشمند ───────────────────────────────
-    async def _vlm_extract_safe(
-        self, item: RawItem, caption_text: str
-    ) -> SafeProductExtraction | None:
+    async def _vlm_extract_safe(self, caption_text: str) -> SafeProductExtraction | None:
+        """مغزِ هوشمند (Qwen محلی/BoxAPI) — با مسیرِ فرار: هر شکست → None ← regex ادامه می‌دهد."""
         assert self.ai is not None
         schema = SafeProductExtraction.model_json_schema()
         user_prompt = (
@@ -438,7 +437,10 @@ class ExtractionPipeline:
             {"role": "user", "content": user_prompt},
         ]
         for _attempt in range(3):
-            text = await self.ai.chat(messages, temperature=0)
+            try:
+                text = await self.ai.chat(messages, temperature=0)
+            except Exception:
+                return None
             try:
                 result = SafeProductExtraction.model_validate(_defensive_parse(text))
             except (ValidationError, ValueError) as e:
