@@ -69,6 +69,7 @@ def normalize(text: str) -> str:
     t = t.translate(_FA_DIGITS)
     t = t.replace("\u200c", " ").replace("\u200f", "").replace("\u200e", "")
     t = re.sub(r"[،٬]", "", t)  # جداکننده‌ی هزارگان فارسی
+    t = re.sub(r"(?<=\d),(?=\d{3})", "", t)  # جداکننده‌ی هزارگانِ لاتین: «380,000» ← «380000»
     t = re.sub(r"\s+", " ", t).strip()
     return t
 
@@ -125,6 +126,12 @@ def parse_price_fa(text: str) -> PriceParseResult:
 
     t = normalize(text)
     candidates: list[PriceCandidate] = []
+
+    # بافتِ «قیمت قبل/قدیم/اصلی» — عددِ بعدی = قیمتِ قدیم (نه قیمتِ فعلی)
+    old_ctx_end: int | None = None
+    m_old_ctx = re.search(r"(?:قیمت|نرخ)\s*(?:قبلی|قبل|قدیمی|قدیم|اصلی)", t)
+    if m_old_ctx:
+        old_ctx_end = m_old_ctx.end()
 
     # قیمت توافقی؟
     for pat in PRICE_ON_REQUEST_PATTERNS:
@@ -239,7 +246,11 @@ def parse_price_fa(text: str) -> PriceParseResult:
             val = num  # «۲٬۵۰۰٬۰۰۰ تومان» — عدد بزرگ خودش تومان است
         else:
             val = num * 1_000  # «۴۸۰ تومان» در فارکس فروشندگان = ۴۸۰ هزار
-        candidates.append(PriceCandidate(val, m.group(0), "current", 0.9, ["با واحد صریح"]))
+        kind = "current"
+        note = "با واحد صریح"
+        if old_ctx_end is not None and 0 <= m.start() - old_ctx_end <= 15:
+            kind, note = "old", "قیمت قبل/قدیم (بافتِ صریح)"
+        candidates.append(PriceCandidate(val, m.group(0), kind, 0.9, [note]))
 
     # اعداد برهنه (بدون واحد) — فقط وقتی هنوز کاندیدایی نداریم یا عدد بزرگ است
     covered = {c.raw_text for c in candidates}
@@ -262,7 +273,10 @@ def parse_price_fa(text: str) -> PriceParseResult:
             val, note, conf = num, "عدد ۶رقمی = تومان", 0.85
         else:  # ۳رقمی مثل ۴۸۰: هزار تومان
             val, note, conf = num * 1_000, "عدد ۳رقمی = هزار تومان", 0.8
-        candidates.append(PriceCandidate(val, raw, "current", conf, [note, "بدون واحد"]))
+        kind = "current"
+        if old_ctx_end is not None and 0 <= m.start() - old_ctx_end <= 15:
+            kind, note = "old", "قیمت قبل/قدیم (بافتِ صریح)"
+        candidates.append(PriceCandidate(val, raw, kind, conf, [note, "بدون واحد"]))
 
     # حدس خط‌خورده (بدون فرم صریح): دو عدد با بافت «تخفیف» — فقط با عقل سلیم اندازه (اختلاف حداکثر ۲۰ برابر)
     discount_ctx = re.search(r"تخفیف|حراج|off|%", t)

@@ -17,7 +17,15 @@ from __future__ import annotations
 
 from typing import Any
 
-CATEGORY_VOCAB = {"skincare", "makeup", "perfume", "haircare", "hygiene", "other"}
+CATEGORY_VOCAB = {
+    "skincare",
+    "makeup",
+    "perfume",
+    "haircare",
+    "hygiene",
+    "deo_fragrance",
+    "other",
+}
 STOCK_VOCAB = {"in_stock", "out_of_stock", "on_request", "unknown"}
 GATE_PRICE = 0.85
 GATE_CATEGORY = 0.75
@@ -57,14 +65,20 @@ def _score_subset(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]])
         else:
             errors.append({"id": key, "type": "price", "gold": g_price, "pred": p_price})
 
-        if (sample.get("category") or "") == (pred.get("category") or ""):
+        # دسته: تک‌دسته = تساوی؛ چنددسته («اسکین‌کر، آرایش») = عضویت در فهرستِ طلایی
+        gold_cats = sample.get("categories") or (
+            [sample["category"]] if sample.get("category") else []
+        )
+        p_cat = pred.get("category") or None
+        cat_match = (p_cat in gold_cats) if gold_cats else (p_cat is None)
+        if cat_match:
             cat_ok += 1
         else:
             errors.append(
                 {
                     "id": key,
                     "type": "category",
-                    "gold": sample.get("category"),
+                    "gold": gold_cats or None,
                     "pred": pred.get("category"),
                 }
             )
@@ -103,9 +117,77 @@ def _score_subset(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]])
     }
 
 
+def _tokens(text: str | None) -> set[str]:
+    """توکن‌های نرمال‌شده برای مقایسه‌ی نام‌ها (بدون حرفِ ربط)."""
+    stop = {"و", "با", "یا", "در", "برای", "از"}
+    return {
+        w
+        for w in (text or "").replace("\u200c", " ").replace("_", " ").split()
+        if w and w not in stop
+    }
+
+
+def _product_match(g: dict[str, Any], p: dict[str, Any]) -> bool:
+    """محصولِ طلایی «پیدا شد» اگر: برند یکی/دربرگیرنده باشد یا نام‌ها هم‌پوشانی داشته باشند."""
+
+    def _comp(s: Any) -> str:
+        return "".join(str(s or "").replace("\u200c", " ").split()).casefold()
+
+    raw_name = g.get("name")
+    g_names: list[Any] = list(raw_name) if isinstance(raw_name, list) else [raw_name]
+    if g.get("brand") and p.get("brand"):
+        gb, pb = _comp(g["brand"]), _comp(p["brand"])
+        if gb and pb and (gb == pb or gb in pb or pb in gb):
+            return True
+    pn_raw = p.get("product_name") or p.get("name_fa") or ""
+    for one in g_names:
+        gn, pn = _tokens(one), _tokens(pn_raw)
+        if gn and pn and len(gn & pn) / len(gn) >= 0.5:
+            return True
+        # «ضد تعریق» ≈ «ضدتعریق» — مقایسه‌ی فشرده (بدونِ فاصله)
+        gc, pc = _comp(one), _comp(pn_raw)
+        if gc and pc and (gc in pc or pc in gc):
+            return True
+    return False
+
+
+def score_products(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    """نکته‌ی ۱ و ۲: بازیابیِ محصولاتِ چندمحصوله + دقتِ نام/برندِ تک‌محصوله‌ها."""
+    multi = [s for s in items if s.get("products")]
+    found = total = 0
+    for s in multi:
+        p_prods = (preds.get(s["id"]) or {}).get("products") or []
+        for g in s["products"]:
+            total += 1
+            if any(_product_match(g, p) for p in p_prods):
+                found += 1
+
+    named = [s for s in items if s.get("product_name")]
+    name_hits = sum(
+        1
+        for s in named
+        if _product_match({"name": s["product_name"], "brand": None}, preds.get(s["id"]) or {})
+    )
+    branded = [s for s in items if s.get("brand")]
+    brand_hits = sum(
+        1
+        for s in branded
+        if _product_match({"name": None, "brand": s["brand"]}, preds.get(s["id"]) or {})
+    )
+    return {
+        "product_labeled": total,
+        "product_recall": round(found / total, 4) if total else 0,
+        "name_labeled": len(named),
+        "name_accuracy": round(name_hits / len(named), 4) if named else 0,
+        "brand_labeled": len(branded),
+        "brand_accuracy": round(brand_hits / len(branded), 4) if branded else 0,
+    }
+
+
 def score(gold: list[dict[str, Any]], preds: dict[str, dict[str, Any]]) -> dict[str, Any]:
     """نمره‌ی کل + تفکیک مصنوعی/واقعی (اگر نمونه‌های synthetic علامت‌خورده باشند)."""
     result = _score_subset(gold, preds)
+    result.update(score_products(gold, preds))
     synthetic = [s for s in gold if s.get("synthetic")]
     real = [s for s in gold if not s.get("synthetic")]
     if synthetic and real:
@@ -141,6 +223,13 @@ def validate_gold(samples: list[dict[str, Any]]) -> list[str]:
         cat = s.get("category")
         if cat is not None and cat not in CATEGORY_VOCAB:
             issues.append(f"{sid}: دسته‌ی ناشناخته «{cat}»")
+        for c in s.get("categories") or []:
+            if c not in CATEGORY_VOCAB:
+                issues.append(f"{sid}: دسته‌ی چندگانه‌ی ناشناخته «{c}»")
+        for p in s.get("products") or []:
+            pc = p.get("category")
+            if pc is not None and pc not in CATEGORY_VOCAB:
+                issues.append(f"{sid}: دسته‌ی محصولِ چندمحصوله ناشناخته «{pc}»")
         st = s.get("stock_state")
         if st is not None and st not in STOCK_VOCAB:
             issues.append(f"{sid}: وضعیت موجودی ناشناخته «{st}»")
@@ -156,8 +245,11 @@ def render_verification_sheet(samples: list[dict[str, Any]]) -> str:
         "> اگر غلط است همان‌جا اصلاح کنید (طبق قاعده: «هر ایرانی چطور می‌خواند»).",
         "> نسخه‌ی تعاملی (تیک‌خور + خروجی اصلاحات): `verification.html` را در مرورگر باز کنید.",
         "",
-        "| # | کپشن (کامل) | قیمت (تومان) | دسته | برند | رنگ/سایز/شید | موجودی | تأیید |",
-        "|---|------------|--------------|------|------|------------|--------|------|",
+        "> ستونِ **موجودی تأییدنشده** است (نکته‌ی ۳ بررس): in_stock=«موجود» · "
+        "on_request=«استعلام در دایرکت/کامنت» · unknown=«نامشخص».",
+        "",
+        "| # | کپشن (کامل) | نام محصول | قیمت (تومان) | دسته | برند | رنگ/سایز/شید | موجودی | تأیید |",
+        "|---|------------|----------|--------------|------|------|------------|--------|------|",
     ]
     for s in samples:
         cap = (s.get("caption") or "").replace("\n", " ").replace("|", "/")
@@ -169,8 +261,10 @@ def render_verification_sheet(samples: list[dict[str, Any]]) -> str:
         )
         syn = " *(synthetic)*" if s.get("synthetic") else ""
         lines.append(
-            f"| {s['id']}{syn} | {cap} | {s.get('price_toman') or '—'} | "
-            f"{s.get('category') or '—'} | {s.get('brand') or '—'} | {attrs} | "
+            f"| {s['id']}{syn} | {cap} | {s.get('product_name') or '—'} | "
+            f"{s.get('price_toman') or '—'} | "
+            f"{s.get('category') or '/'.join(s.get('categories', [])) or '—'} | "
+            f"{s.get('brand') or '—'} | {attrs} | "
             f"{s.get('stock_state') or '—'} | ☐ |"
         )
     lines.append("")
@@ -245,7 +339,9 @@ def render_verification_html(samples: list[dict[str, Any]]) -> str:
 </div>
 <p style="font-size:.85rem;color:#9ca3af">کپشن‌ها کامل‌اند. برای هر ردیف: اگر درست است ☑ بزنید؛
 اگر غلط است فیلدها را همان‌جا اصلاح کنید (و ☐ را باز بگذارید). در پایان «ساختِ خروجیِ اصلاحات»
-را بزنید و متن JSON را برای پیجا بفرستید.</p>
+را بزنید و متن JSON را برای پیجا بفرستید.<br>
+راهنمای موجودی (این ستون تأییدنشده است — نکته‌ی ۳): <b>in_stock</b>=«موجود» ·
+<b>on_request</b>=«قیمت/موجودی با استعلام در دایرکت/کامنت» · <b>unknown</b>=«نامشخص».</p>
 __ROWS__
 <h2 style="font-size:1rem">خروجیِ اصلاحات (JSON)</h2>
 <textarea id="out" readonly></textarea>

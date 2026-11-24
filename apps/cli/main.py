@@ -186,7 +186,10 @@ def extract_text(
     samples = json.loads(input.read_text(encoding="utf-8"))
     preds = []
     for s in samples:
-        r = ExtractionPipeline.extract_signals_fa(s.get("caption") or "")
+        cap = s.get("caption") or ""
+        r = ExtractionPipeline.extract_signals_fa(cap)
+        r["products"] = ExtractionPipeline.extract_multi_fa(cap)  # نکته‌ی ۱: همه‌ی محصولات
+        r["is_multi_product"] = len(r["products"]) > 1 or ExtractionPipeline.is_multi_caption(cap)
         preds.append({"id": s["id"], **r})
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(json.dumps(preds, ensure_ascii=False, indent=2), encoding="utf-8")

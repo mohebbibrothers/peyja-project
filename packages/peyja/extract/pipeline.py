@@ -20,6 +20,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from peyja.config import get_settings
 from peyja.extract.caption import analyze_caption
+from peyja.extract.catalog import (
+    find_brand,
+    find_product_category,
+    find_product_name,
+    split_product_spans,
+)
 from peyja.extract.price_parser import PriceCandidate
 from peyja.extract.schema import SafeProductExtraction, route_by_confidence
 from peyja.models import (
@@ -44,8 +50,12 @@ VLM_SYSTEM_PROMPT = (
     "۱. قیمت فعلی: فقط عددی که واقعاً قیمت است. «حجم/وزن/ساعت/تعداد/SPF/شماره» هرگز قیمت نیستند.\n"
     "۲. قیمت قبل از تخفیف (old) فقط با نشانه‌ی صریحِ «از X به Y» یا خط‌خوردگی.\n"
     "۳. دسته: یکی از skincare | makeup | perfume | haircare | hygiene اگر غالب مشخص است.\n"
-    "۴. برند، رنگ‌ها/تناژها، شماره‌ی شید («شماره ۱۲» — نه رنگ نه سایز)، سایز/حجم، SPF.\n"
-    "۵. وضعیت موجودی: in_stock | out_of_stock | on_request | unknown.\n\n"
+    "۴. نامِ محصول (عبارتِ کاتالوگی مثل «کرم آبرسان»)، برند، رنگ‌ها/تناژها، "
+    "شماره‌ی شید («شماره ۱۲» — نه رنگ نه سایز)، سایز/حجم، SPF.\n"
+    "۵. وضعیت موجودی: in_stock | out_of_stock | on_request | unknown.\n"
+    "۶. **چندمحصوله:** اگر پست چند محصول دارد، «همه» را در آرایه‌ی products بیاور "
+    "(هرکدام با name_fa و مشخصاتِ خودش) و products را خالی نگذار؛ "
+    "تک‌محصوله = products خالی و فیلدهای اصلی پر.\n\n"
     "## قواعدِ قیمتِ ایرانی (دانشِ بحرانی)\n"
     "- «X/YY» = X میلیون و Y صدمِ میلیون ⇒ «۴/۸۰» = 4800000\n"
     "- عددِ ۳رقمیِ بدونِ واحد = هزارتایی ⇒ «۵۵۰» یا «۵۵۰💸» = 550000\n"
@@ -70,9 +80,16 @@ VLM_SYSTEM_PROMPT = (
     '"volume_ml": 50, "spf": 50, "stock_state": "in_stock", "confidence": 0.9}\n'
     "ورودی: «رژلب مات شماره ۱۲ | قیمت توافقی»\n"
     'خروجی: {"extraction_successful": true, "title_fa": "رژلب مات", '
+    '"product_name": "رژلب", '
     '"category": "makeup", "brand": null, "price_toman": null, '
     '"old_price_toman": null, "colors": [], "shades": ["12"], "sizes": [], '
-    '"volume_ml": null, "spf": null, "stock_state": "on_request", "confidence": 0.85}\n\n'
+    '"volume_ml": null, "spf": null, "stock_state": "on_request", "confidence": 0.85}\n'
+    "ورودی: «سه محصول: ۱.دور چشم نامبوزین ۲.اسنس نامبوزین ۳.ابرسان فارم استی»\n"
+    'خروجی: {"extraction_successful": true, "title_fa": "سه محصول نجات‌بخش", '
+    '"products": [{"name_fa": "دور چشم", "category": "skincare", "brand": "نامبوزین"}, '
+    '{"name_fa": "اسنس", "category": "skincare", "brand": "نامبوزین"}, '
+    '{"name_fa": "ابرسان", "category": "skincare", "brand": "فارم استی"}], '
+    '"price_toman": null, "stock_state": "in_stock", "confidence": 0.85}\n\n'
     "## قراردادِ خروجی (Output Contract)\n"
     "- فقط و فقط یک شیءِ JSON مطابق اسکیمای داده‌شده؛ بدون هیچ متن، توضیح یا حصارِ کد.\n"
     "- قیمت‌ها = عددِ صحیحِ تومانِ کامل (مثلا 4800000)؛ لیست‌ها خالی ولی هرگز null.\n"
@@ -140,17 +157,23 @@ CATEGORY_MAP: dict[str, str] = {
     "سرم مو": "haircare",
     "پوست سر": "haircare",
     "حالت دهنده": "haircare",
-    # hygiene
-    "اسپری": "hygiene",  # اسپری بدن/ضدتعریق در بازار ایران = بهداشتی (عطر = perfume)
+    # hygiene (بهداشتیِ واقعی — طبق تأیید انسانیِ gold-033)
     "ضدعفونی": "hygiene",
-    "دئودورانت": "hygiene",
     "پد بهداشتی": "hygiene",
     "دستمال": "hygiene",
-    "ضد تعریق": "hygiene",
-    "ضدتعریق": "hygiene",
     "بادی اسپلش": "hygiene",
-    "لوسیون بدن": "hygiene",
-    "داو": "hygiene",  # برند مراقبت بدن (نایت/مام/اسپری) در این نیچ
+    # deo_fragrance (خوشبوکننده/ضدتعریق — «دسته‌بندیِ دقیق‌تر» به انتخاب کاربر)
+    "خوشبو کننده": "deo_fragrance",
+    "خوشبوکننده": "deo_fragrance",
+    "ضد تعریق": "deo_fragrance",
+    "ضدتعریق": "deo_fragrance",
+    "دئودورانت": "deo_fragrance",
+    "لوسیون بدن": "deo_fragrance",
+    "اسپری بدن": "deo_fragrance",
+    "اسپری": "deo_fragrance",  # عطرِ واقعی = perfume؛ اسپری بدن/ضدتعریق = deo
+    "مام قارچی": "deo_fragrance",
+    "مام": "deo_fragrance",  # با مرزِ واژه — «مامان» برنمی‌دارد
+    "داو": "deo_fragrance",  # در این نیچ = ضدتعریق/خوشبوکننده
     # makeup — برند/محصول مشخص
     "شیگلم": "makeup",
 }
@@ -233,8 +256,49 @@ class ExtractionPipeline:
             else ("in_stock" if price_toman else (vlm.stock_state if vlm else "unknown"))
         )
 
-        route = route_by_confidence(confidence, self.settings.extract_review_floor)
-        status = {"store": "confirmed", "review": "candidate", "reject": "rejected"}[route]
+        # ── فهرستِ محصولات: چندمحصوله‌ی VLM (همه‌ی محصولات) یا تک‌محصوله‌ی ادغام‌شده ──
+        single_name = find_product_name(caption_text)
+        if vlm and vlm.products:
+            specs: list[dict[str, Any]] = [
+                {
+                    "name": p.name_fa,
+                    "title": p.name_fa or _derive_title(caption_text),
+                    "category": p.category,
+                    "brand": p.brand,
+                    "colors": p.colors or [],
+                    "shades": p.shades or [],
+                    "sizes": p.sizes or [],
+                    "volume_ml": p.volume_ml,
+                    "spf": p.spf,
+                    "price": p.price_toman,
+                    "old_price": p.old_price_toman,
+                    "old_conf": 0.8,
+                    "stock": p.stock_state,
+                    "method": "vlm",
+                    "confidence": max(vlm.confidence, 0.5),
+                }
+                for p in vlm.products
+            ]
+        else:
+            specs = [
+                {
+                    "name": single_name,
+                    "title": title,
+                    "category": category,
+                    "brand": brand,
+                    "colors": colors,
+                    "shades": shades,
+                    "sizes": sizes,
+                    "volume_ml": vlm.volume_ml if vlm else None,
+                    "spf": vlm.spf if vlm else None,
+                    "price": price_toman,
+                    "old_price": old_price.value_toman if old_price else None,
+                    "old_conf": old_price.confidence if old_price else 0.8,
+                    "stock": stock_state,
+                    "method": method,
+                    "confidence": confidence,
+                }
+            ]
 
         stats = {
             "products": 0,
@@ -244,64 +308,68 @@ class ExtractionPipeline:
             "human_review": 0,
             "rejected": 0,
         }
-        stats[{"store": "stored", "review": "human_review", "reject": "rejected"}[route]] += 1
+        for spec in specs:
+            route = route_by_confidence(spec["confidence"], self.settings.extract_review_floor)
+            status = {"store": "confirmed", "review": "candidate", "reject": "rejected"}[route]
+            stats[{"store": "stored", "review": "human_review", "reject": "rejected"}[route]] += 1
 
-        product = Product(
-            page_id=page_id,
-            title_fa=title,
-            category=category,
-            attributes={
-                "brand": brand,
-                "colors": colors,
-                "shades": shades,
-                "sizes": sizes,
-                "volume_ml": vlm.volume_ml if vlm else None,
-                "spf": vlm.spf if vlm else None,
-            },
-            status=status,
-        )
-        self.session.add(product)
-        await self.session.flush()
-        stats["products"] += 1
-
-        variant = Variant(product_id=product.id, options=None)
-        self.session.add(variant)
-        await self.session.flush()
-
-        offer = Offer(
-            variant_id=variant.id,
-            price_minor=price_toman,
-            stock_state=stock_state,
-            valid_from=utcnow(),
-            ttl_hours=24,
-            stale=False,
-        )
-        self.session.add(offer)
-        await self.session.flush()
-        stats["offers"] += 1
-
-        source_type = "vlm" if method == "vlm" else "caption"
-        self.session.add(
-            Evidence(
-                offer_id=offer.id,
-                product_id=product.id,
-                source_type=source_type,
-                source_id=item.ig_id,
-                method=method,
-                confidence=confidence,
+            product = Product(
+                page_id=page_id,
+                title_fa=spec["title"],
+                category=spec["category"],
+                attributes={
+                    "product_name": spec["name"],
+                    "brand": spec["brand"],
+                    "colors": spec["colors"],
+                    "shades": spec["shades"],
+                    "sizes": spec["sizes"],
+                    "volume_ml": spec["volume_ml"],
+                    "spf": spec["spf"],
+                },
+                status=status,
             )
-        )
-        if old_price and old_price.value_toman:
+            self.session.add(product)
+            await self.session.flush()
+            stats["products"] += 1
+
+            variant = Variant(product_id=product.id, options=None)
+            self.session.add(variant)
+            await self.session.flush()
+
+            offer = Offer(
+                variant_id=variant.id,
+                price_minor=spec["price"],
+                stock_state=spec["stock"],
+                valid_from=utcnow(),
+                ttl_hours=24,
+                stale=False,
+            )
+            self.session.add(offer)
+            await self.session.flush()
+            stats["offers"] += 1
+
+            source_type = "vlm" if spec["method"] == "vlm" else "caption"
             self.session.add(
                 Evidence(
                     offer_id=offer.id,
                     product_id=product.id,
-                    source_type="caption",
+                    source_type=source_type,
                     source_id=item.ig_id,
-                    method="price_parser:old_price",
-                    confidence=old_price.confidence,
+                    method=spec["method"],
+                    confidence=spec["confidence"],
                 )
             )
+            if spec["old_price"]:
+                self.session.add(
+                    Evidence(
+                        offer_id=offer.id,
+                        product_id=product.id,
+                        source_type="caption",
+                        source_id=item.ig_id,
+                        method="price_parser:old_price",
+                        confidence=spec["old_conf"],
+                    )
+                )
         return stats
 
     # ── کمکی‌ها ──────────────────────────────────────────────────────────────
@@ -314,7 +382,10 @@ class ExtractionPipeline:
         return {
             "price_toman": price,
             "old_price_toman": (signals.prices.old.value_toman if signals.prices.old else None),
-            "category": _guess_category(caption_text + " " + " ".join(signals.hashtags)),
+            "category": _guess_category(caption_text + " " + " ".join(signals.hashtags))
+            or find_product_category(caption_text),
+            "product_name": find_product_name(caption_text) or _derive_title(caption_text),
+            "brand": find_brand(caption_text),
             "colors": signals.colors,
             "shades": signals.shades,
             "sizes": signals.sizes,
@@ -325,6 +396,32 @@ class ExtractionPipeline:
             "method": method,
             "route": route_by_confidence(conf, get_settings().extract_review_floor),
         }
+
+    @staticmethod
+    def extract_multi_fa(caption_text: str) -> list[dict[str, Any]]:
+        """استخراجِ چندمحصوله — «همه‌ی محصولاتِ یک پست، نه فقط یکی» (نکته‌ی ۱).
+
+        جداکننده‌های صریح (خط/گلوله/شماره/ایموجی) ← تکه‌بندیِ واژه‌ی محصول؛
+        تکه‌هایِ بی‌نام/بی‌برند/بی‌قیمت (متنِ توضیحی) دور ریخته می‌شوند.
+        """
+        spans = split_product_spans(caption_text or "")
+        kept = [
+            s for s in spans if find_product_name(s) or find_brand(s) or re.search(r"\d{3,}", s)
+        ]
+        pool = kept or spans
+        return [
+            {**ExtractionPipeline.extract_signals_fa(span), "span": span[:200]} for span in pool
+        ]
+
+    @staticmethod
+    def is_multi_caption(caption_text: str) -> bool:
+        """آیا کپشن «صراحتا» چند محصولی است؟ («چند تا محصول»، «سه محصول» …)"""
+        return bool(
+            re.search(
+                r"چند\s*تا\s*محصول|چند\s*محصول|سه\s*محصول|دو\s*محصول|چندتا\s*محصول",
+                (caption_text or "").replace("\u200c", " "),
+            )
+        )
 
     # ── استخراج ساخت‌یافته‌ی VLM با retry هوشمند ───────────────────────────────
     async def _vlm_extract_safe(

@@ -687,6 +687,92 @@ SHADES: dict[int, list[str]] = {
     11: ["44"],  # «لیپ گلاس 44» = شید ۴۴
 }
 
+# ── نامِ محصول («کرم آبرسان» …) — برای کاتالوگ/جست‌وجو/دسته‌بندی (نکته‌ی ۲ کاربر) ──
+NAMES: dict[int, object] = {
+    4: "امپول کلاژن",
+    5: "لیپ گلاس",
+    10: "سرم ضد ریزش",
+    11: "لیپ گلاس",
+    13: "پالت سایه",
+    15: "اسپری بدن",
+    17: "مام قارچی",
+    22: "پالت سایه",
+    24: ["دورچشم", "ابرسان"],
+    30: "بادی اسپلش",
+    31: "سایه چشم",
+    34: "اسپری بدن",
+    36: "بالم لب",
+    39: "پک شیگلم",
+    40: "ابرسان",
+    42: "محصول Rose Done",
+    46: "بی بی کرم",
+    55: "مام قارچی",
+    57: "ریمل",
+    58: "ریمل",
+    60: "اسپری بدن",
+    61: ["ضد تعریق", "اسپری"],
+}
+
+# ── پست‌های چندمحصوله (نکته‌ی ۱ کاربر: «همه‌ی محصولات را دربیاور») ───────────────
+PRODUCTS: dict[int, list[dict]] = {
+    6: [
+        {"name": "مرطوب کننده و ابرسان", "brand": "آنوا", "category": "skincare"},
+        {"name": "ضد افتاب", "brand": "سنتلا", "category": "skincare"},
+        {"name": "ترمیم کننده", "brand": "اکسیس وای", "category": "skincare"},
+        {"name": "ابرسان", "brand": "دکتر التیا", "category": "skincare"},
+        {"name": "ویتامین C", "brand": "آرنسیا", "category": "skincare"},
+        {"name": "دورچشم", "brand": "دکتر ملاکسین", "category": "skincare"},
+    ],
+    21: [
+        {"name": "ضد افتاب", "brand": "ایزیدین", "category": "skincare"},
+        {"name": "اسکراب بدن", "brand": "فارماسی", "category": "skincare"},
+        {"name": "شامپو بدن", "brand": None, "category": "hygiene"},
+        {"name": "لیپ بالم", "brand": None, "category": "makeup"},
+        {"name": "کانتور", "brand": None, "category": "makeup"},
+        {"name": "کرم دست و صورت", "brand": None, "category": "skincare"},
+    ],
+    47: [
+        {"name": "دور چشم", "brand": "نامبوزین", "category": "skincare"},
+        {"name": "اسنس", "brand": "نامبوزین", "category": "skincare"},
+        {"name": "ابرسان", "brand": "فارم استی", "category": "skincare"},
+    ],
+    55: [
+        {"name": "مام قارچی", "brand": "داو", "category": "deo_fragrance"},
+        {"name": "اسپری بدن", "brand": "داو", "category": "deo_fragrance"},
+        {"name": "لوسیون بدن", "brand": "داو", "category": "deo_fragrance"},
+    ],
+}
+
+# چندمحصوله ولی بدونِ نامِ محصول در کپشن (قیمت/فهرست در کامنت/دایرکت)
+MULTI_UNNAMED: set[int] = {23, 25, 61}
+
+# دسته‌ی چندگانه (نکته‌ی ۴: «اسکین‌کر، آرایش» = هر دو)
+CATEGORIES_MULTI: dict[int, list[str]] = {
+    52: ["skincare", "makeup"],
+}
+
+# ── دور ۱ تأییدِ انسانی (JSON اصلاحاتِ verification-sheet — حرفِ آخر با بررس) ─────
+HUMAN_FIXES: dict[int, dict] = {
+    4: {"sizes": ["250"]},  # gold-007 «حجم ۲۵۰» = سایز/حجمِ محصول
+    15: {"category": "deo_fragrance"},  # gold-018 «خوشبو کننده» = دسته‌ی دقیق‌تر
+    17: {"category": "deo_fragrance"},  # gold-020
+    21: {"brand": "ایزیدین"},  # gold-024 «ایزیدین و …»
+    24: {"brand": "نامبوزین"},  # gold-027
+    34: {"category": "deo_fragrance"},  # gold-037
+    46: {"brand": "فارماسی"},  # gold-049
+    47: {"brand": "نامبوزین"},  # gold-050
+    52: {"categories": ["skincare", "makeup"]},  # gold-055
+    55: {"category": "deo_fragrance"},  # gold-058
+    57: {"colors": ["صورتی"]},  # gold-060
+    60: {"category": "deo_fragrance"},  # gold-063
+    61: {"category": "deo_fragrance"},  # gold-064
+    # نکته‌ی ۳: بررس، ستونِ موجودی را چک نکرده — این‌ها تا دورِ بعدی «موجودی=تأییدنشده»
+    25: {"notes": "چند محصول بدون نام در کپشن (فهرست با کامنت «روتین»)؛ موجودی تأییدنشده"},
+    56: {"notes": "پستِ شوخی — بدون محصول؛ موجودی تأییدنشده (نکته‌ی ۳)"},
+}
+
+SYNTHETIC_NAMES = ["کرم ضد افتاب", "رژلب مات", "ادوپرفیوم", "شامپو بدون سولفات"]
+
 
 def main() -> None:
     conn = sqlite3.connect(DB_PATH)
@@ -704,6 +790,7 @@ def main() -> None:
                 "source_username": "synthetic",
                 "ig_media_id": "REPLACE_ME",
                 "synthetic": True,
+                "product_name": SYNTHETIC_NAMES[i - 1],
                 **s,
             }
         )
@@ -714,25 +801,30 @@ def main() -> None:
             missing.append(raw_id)
             continue
         price, old, cat, brand, colors, sizes, vol, spf, stock, note = LABELS[raw_id]
-        samples.append(
-            {
-                "id": f"gold-{idx:03d}",
-                "source_username": "farmashop_aras",
-                "ig_media_id": str(ig_id),
-                "caption": caption or "",
-                "price_toman": price,
-                "old_price_toman": old,
-                "category": cat,
-                "brand": brand,
-                "colors": colors,
-                "shades": SHADES.get(raw_id, []),
-                "sizes": sizes,
-                "volume_ml": vol,
-                "spf": spf,
-                "stock_state": stock,
-                "notes": note,
-            }
-        )
+        sample: dict = {
+            "id": f"gold-{idx:03d}",
+            "source_username": "farmashop_aras",
+            "ig_media_id": str(ig_id),
+            "caption": caption or "",
+            "price_toman": price,
+            "old_price_toman": old,
+            "category": cat,
+            "brand": brand,
+            "colors": colors,
+            "shades": SHADES.get(raw_id, []),
+            "sizes": sizes,
+            "volume_ml": vol,
+            "spf": spf,
+            "stock_state": stock,
+            "notes": note,
+            "product_name": NAMES.get(raw_id),
+            "products": PRODUCTS.get(raw_id, []),
+            "multi_product": raw_id in PRODUCTS or raw_id in MULTI_UNNAMED,
+        }
+        if raw_id in CATEGORIES_MULTI:
+            sample["categories"] = CATEGORIES_MULTI[raw_id]
+        sample.update(HUMAN_FIXES.get(raw_id, {}))  # حرفِ آخر = تأییدِ انسانی
+        samples.append(sample)
 
     if missing:
         raise SystemExit(f"برچسب ندارند: {missing}")

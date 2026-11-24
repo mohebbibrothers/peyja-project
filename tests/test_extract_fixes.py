@@ -51,9 +51,12 @@ def test_longest_key_wins() -> None:
     assert _guess_category("کرم پودر مات") == "makeup"  # «کرم پودر» بر «کرم»
 
 
-def test_body_spray_is_hygiene_not_perfume() -> None:
-    assert _guess_category("اسپری داو ضدتعریق") == "hygiene"
+def test_body_spray_is_deo_not_perfume() -> None:
+    # «خوشبو کننده» = دسته‌ی دقیق‌ترِ کاربر (نکته‌ی ۴) — نه بهداشتیِ خام، نه عطر
+    assert _guess_category("اسپری داو ضدتعریق") == "deo_fragrance"
+    assert _guess_category("مام قارچی و لوسیون بدن") == "deo_fragrance"
     assert _guess_category("ادوپرفیوم ۹۰ میل") == "perfume"  # عطر واقعی هنوز perfume
+    assert _guess_category("بادی اسپلش بث اند بادی") == "hygiene"  # تأییدِ gold-033
 
 
 def test_short_keys_need_word_boundary() -> None:
@@ -61,7 +64,7 @@ def test_short_keys_need_word_boundary() -> None:
     assert _guess_category("مراقبت درست و مداومه برای پوست زیبا") == "skincare"
     assert _guess_category("علاقه‌مند به یادگیری روتین پوستی") == "skincare"
     assert _guess_category("سرمایه‌گذاری روی پوستت") == "skincare"
-    assert _guess_category("داو مام قارچی") == "hygiene"  # مرزِ واژه ✓
+    assert _guess_category("داو مام قارچی") == "deo_fragrance"  # مرزِ واژه ✓
     assert _guess_category("کرمهای ضد آفتاب") == "skincare"  # پسوند «های» مجاز
 
 

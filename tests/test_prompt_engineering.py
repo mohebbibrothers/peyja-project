@@ -45,8 +45,16 @@ def test_few_shot_examples_are_valid_json() -> None:
     import re
 
     blobs = re.findall(r"\{\"extraction_successful\".*?\}(?=\n|$)", VLM_SYSTEM_PROMPT)
-    assert len(blobs) == 3
+    assert len(blobs) == 4
     for b in blobs:
         data = json.loads(b)
         assert data["extraction_successful"] is True
-        assert "price_toman" in data and "shades" in data
+        assert "price_toman" in data
+        assert "shades" in data or "products" in data
+
+
+def test_prompt_addresses_multi_product_and_names() -> None:
+    """نکته‌ی ۱ و ۲ کاربر: چندمحصوله + نام محصول باید در پرامپت باشد."""
+    assert "products" in VLM_SYSTEM_PROMPT
+    assert "چندمحصوله" in VLM_SYSTEM_PROMPT
+    assert "product_name" in VLM_SYSTEM_PROMPT

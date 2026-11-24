@@ -4,6 +4,7 @@
     "source_username": "synthetic",
     "ig_media_id": "REPLACE_ME",
     "synthetic": true,
+    "product_name": "کرم ضد افتاب",
     "caption": "کرم ضد آفتاب سان‌سل SPF50 🌞 حجم ۵۰ میل | مناسب پوست چرب | قیمت ۴/۸۰ تومان",
     "price_toman": 4800000,
     "old_price_toman": null,
@@ -24,6 +25,7 @@
     "source_username": "synthetic",
     "ig_media_id": "REPLACE_ME",
     "synthetic": true,
+    "product_name": "رژلب مات",
     "caption": "رژلب مات گلدن رز 💋 شماره ۱۲ | فقط ۴۸۰ تومان",
     "price_toman": 480000,
     "old_price_toman": null,
@@ -44,6 +46,7 @@
     "source_username": "synthetic",
     "ig_media_id": "REPLACE_ME",
     "synthetic": true,
+    "product_name": "ادوپرفیوم",
     "caption": "تخفیف پاییزه 🍂 ادوپرفیوم ۹۰ میل از ۹۰۰ به ۷۵۰ فقط تا آخر هفته",
     "price_toman": 750000,
     "old_price_toman": 900000,
@@ -63,6 +66,7 @@
     "source_username": "synthetic",
     "ig_media_id": "REPLACE_ME",
     "synthetic": true,
+    "product_name": "شامپو بدون سولفات",
     "caption": "شامپو بدون سولفات حجم ۴۰۰ | قیمت توافقی",
     "price_toman": null,
     "old_price_toman": null,
@@ -92,7 +96,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "کپشن تعاملی؛ محصول/قیمت مشخص نیست"
+    "notes": "کپشن تعاملی؛ محصول/قیمت مشخص نیست",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-006",
@@ -109,7 +116,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "قرعه‌کشی سایه و رژگونه — جایزه"
+    "notes": "قرعه‌کشی سایه و رژگونه — جایزه",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-007",
@@ -122,11 +132,16 @@
     "brand": "فارم استی",
     "colors": [],
     "shades": [],
-    "sizes": [],
+    "sizes": [
+      "250"
+    ],
     "volume_ml": 250,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "«حجم ۲۵۰ میل» حجم است نه قیمت؛ «قیمت خوب» بدون عدد"
+    "notes": "«حجم ۲۵۰ میل» حجم است نه قیمت؛ «قیمت خوب» بدون عدد",
+    "product_name": "امپول کلاژن",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-008",
@@ -145,7 +160,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "شید/شماره ۱۷ (در SHADES)"
+    "notes": "شید/شماره ۱۷ (در SHADES)",
+    "product_name": "لیپ گلاس",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-009",
@@ -162,7 +180,41 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "چندمحصولی: آنوا/سنتلا/اکسیس‌وای/دکتر التیا/آرنسیا/دکتر ملاکسین"
+    "notes": "چندمحصولی: آنوا/سنتلا/اکسیس‌وای/دکتر التیا/آرنسیا/دکتر ملاکسین",
+    "product_name": null,
+    "products": [
+      {
+        "name": "مرطوب کننده و ابرسان",
+        "brand": "آنوا",
+        "category": "skincare"
+      },
+      {
+        "name": "ضد افتاب",
+        "brand": "سنتلا",
+        "category": "skincare"
+      },
+      {
+        "name": "ترمیم کننده",
+        "brand": "اکسیس وای",
+        "category": "skincare"
+      },
+      {
+        "name": "ابرسان",
+        "brand": "دکتر التیا",
+        "category": "skincare"
+      },
+      {
+        "name": "ویتامین C",
+        "brand": "آرنسیا",
+        "category": "skincare"
+      },
+      {
+        "name": "دورچشم",
+        "brand": "دکتر ملاکسین",
+        "category": "skincare"
+      }
+    ],
+    "multi_product": true
   },
   {
     "id": "gold-010",
@@ -179,7 +231,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "کپشن تعاملی"
+    "notes": "کپشن تعاملی",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-011",
@@ -196,7 +251,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "«قیمت مناسب» بدون عدد؛ مشاوره رایگان"
+    "notes": "«قیمت مناسب» بدون عدد؛ مشاوره رایگان",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-012",
@@ -213,7 +271,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "ویرایش ۲: «محصولات پوستی/مراقبتی» غالب (توصیفگرِ عمومی حساب نمی‌شود)"
+    "notes": "ویرایش ۲: «محصولات پوستی/مراقبتی» غالب (توصیفگرِ عمومی حساب نمی‌شود)",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-013",
@@ -230,7 +291,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "سرم ضد ریزش پوست سر = مراقبت مو (نه skincare)"
+    "notes": "سرم ضد ریزش پوست سر = مراقبت مو (نه skincare)",
+    "product_name": "سرم ضد ریزش",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-014",
@@ -249,7 +313,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "شید/شماره ۴۴ (در SHADES)"
+    "notes": "شید/شماره ۴۴ (در SHADES)",
+    "product_name": "لیپ گلاس",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-015",
@@ -266,7 +333,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "#میکاپ_نود"
+    "notes": "#میکاپ_نود",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-016",
@@ -286,7 +356,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "پالت ۱۲ رنگ (spec)؛ دو واریانت رنگی"
+    "notes": "پالت ۱۲ رنگ (spec)؛ دو واریانت رنگی",
+    "product_name": "پالت سایه",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-017",
@@ -303,7 +376,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "کپشن تعاملی"
+    "notes": "کپشن تعاملی",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-018",
@@ -312,7 +388,7 @@
     "caption": "⁨\tاین اسپریای داو واقعاً یه وایب تمیزی و خوشبویی خاص دارن 😭🤍✨\nاز اون بوها که دلت می‌خواد هی خودتو بو کنی 😂🫶🏻\n\n#اسپری_داو #اسپری_خوشبوکننده #محصولات_بهداشتی #محصولات_مراقبتی",
     "price_toman": null,
     "old_price_toman": null,
-    "category": "hygiene",
+    "category": "deo_fragrance",
     "brand": "داو",
     "colors": [],
     "shades": [],
@@ -320,7 +396,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "اسپری بدن/ضدتعریق = بهداشتی (نه عطر)"
+    "notes": "اسپری بدن/ضدتعریق = بهداشتی (نه عطر)",
+    "product_name": "اسپری بدن",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-019",
@@ -337,7 +416,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "پرومو عمومی چنددسته"
+    "notes": "پرومو عمومی چنددسته",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-020",
@@ -346,7 +428,7 @@
     "caption": "بوی خوبت رو بسپر به داوو 😮‍💨🧼🤌🏻\n۲۴ ساعت خوشبویی و حس تمیزی ✨💕\n\n#مام_قارچی #داو #لوازم_بهداشتی #لوازم_آرایشی #محصولات_مراقبتی",
     "price_toman": null,
     "old_price_toman": null,
-    "category": "hygiene",
+    "category": "deo_fragrance",
     "brand": "داو",
     "colors": [],
     "shades": [],
@@ -354,7 +436,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "«۲۴ ساعت» ماندگاری است نه قیمت"
+    "notes": "«۲۴ ساعت» ماندگاری است نه قیمت",
+    "product_name": "مام قارچی",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-021",
@@ -371,7 +456,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "مشاوره رایگان"
+    "notes": "مشاوره رایگان",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-022",
@@ -388,7 +476,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "«محصولات آرایشی و پوستی» هم‌سطح — بدون غالب"
+    "notes": "«محصولات آرایشی و پوستی» هم‌سطح — بدون غالب",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-023",
@@ -405,7 +496,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "فان/چالش — بدون هیچ واژه‌ی دسته‌ای"
+    "notes": "فان/چالش — بدون هیچ واژه‌ی دسته‌ای",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-024",
@@ -415,14 +509,48 @@
     "price_toman": null,
     "old_price_toman": null,
     "category": "skincare",
-    "brand": null,
+    "brand": "ایزیدین",
     "colors": [],
     "shades": [],
     "sizes": [],
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "چندمحصولی (ضدآفتاب ایزیدین، اسکراب فارماسی، …)"
+    "notes": "چندمحصولی (ضدآفتاب ایزیدین، اسکراب فارماسی، …)",
+    "product_name": null,
+    "products": [
+      {
+        "name": "ضد افتاب",
+        "brand": "ایزیدین",
+        "category": "skincare"
+      },
+      {
+        "name": "اسکراب بدن",
+        "brand": "فارماسی",
+        "category": "skincare"
+      },
+      {
+        "name": "شامپو بدن",
+        "brand": null,
+        "category": "hygiene"
+      },
+      {
+        "name": "لیپ بالم",
+        "brand": null,
+        "category": "makeup"
+      },
+      {
+        "name": "کانتور",
+        "brand": null,
+        "category": "makeup"
+      },
+      {
+        "name": "کرم دست و صورت",
+        "brand": null,
+        "category": "skincare"
+      }
+    ],
+    "multi_product": true
   },
   {
     "id": "gold-025",
@@ -442,7 +570,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "پالت ۱۲ رنگ؛ تناژ صورتی و نود"
+    "notes": "پالت ۱۲ رنگ؛ تناژ صورتی و نود",
+    "product_name": "پالت سایه",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-026",
@@ -459,7 +590,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "مقایسه اصل/فیک"
+    "notes": "مقایسه اصل/فیک",
+    "product_name": null,
+    "products": [],
+    "multi_product": true
   },
   {
     "id": "gold-027",
@@ -469,14 +603,20 @@
     "price_toman": null,
     "old_price_toman": null,
     "category": "skincare",
-    "brand": null,
+    "brand": "نامبوزین",
     "colors": [],
     "shades": [],
     "sizes": [],
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "مقایسه اصل/فیک نامبوزین"
+    "notes": "مقایسه اصل/فیک نامبوزین",
+    "product_name": [
+      "دورچشم",
+      "ابرسان"
+    ],
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-028",
@@ -493,7 +633,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "on_request",
-    "notes": "ویرایش ۲: «آرایش» غالب؛ قیمت با کامنت «روتین»"
+    "notes": "چند محصول بدون نام در کپشن (فهرست با کامنت «روتین»)؛ موجودی تأییدنشده",
+    "product_name": null,
+    "products": [],
+    "multi_product": true
   },
   {
     "id": "gold-029",
@@ -510,7 +653,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "راهنمای صبح/شب"
+    "notes": "راهنمای صبح/شب",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-030",
@@ -527,7 +673,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "ویرایش ۲: «پک/لوازم آرایشی» غالب"
+    "notes": "ویرایش ۲: «پک/لوازم آرایشی» غالب",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-031",
@@ -544,7 +693,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "ضدلک/ضدجوش"
+    "notes": "ضدلک/ضدجوش",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-032",
@@ -561,7 +713,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "کپشن تعاملی پوستی"
+    "notes": "کپشن تعاملی پوستی",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-033",
@@ -578,7 +733,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "بادی اسپلش = بهداشتی"
+    "notes": "بادی اسپلش = بهداشتی",
+    "product_name": "بادی اسپلش",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-034",
@@ -595,7 +753,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "#سایه_چشم"
+    "notes": "#سایه_چشم",
+    "product_name": "سایه چشم",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-035",
@@ -612,7 +773,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "ویرایش ۲: «پک آرایشی» غالب"
+    "notes": "ویرایش ۲: «پک آرایشی» غالب",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-036",
@@ -629,7 +793,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "«همین‌قدر گرون» بدون عدد؛ #اسکین_کر"
+    "notes": "«همین‌قدر گرون» بدون عدد؛ #اسکین_کر",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-037",
@@ -638,7 +805,7 @@
     "caption": "این اسپریای داو واقعاً یه وایب تمیزی و خوشبویی خاص دارن 😭🤍✨\nاز اون بوها که دلت می‌خواد هی خودتو بو کنی 😂🫶🏻\n\n🥒 خنک و تازه\n🥥 شیرین و گرم\n🍎 دخترونه و ملایم\n🌸 گلی و لطیف\n☁️ تمیز و پودری\n\nهرکدوم یه حس قشنگ دارن، فقط مونده انتخاب کنی کدوم وایب بیشتر بهت میاد 😭🤍\n\n#اسپری_خوشبوکننده #داو #محصولات_بهداشتی #اسپری_داو #دئودورانت",
     "price_toman": null,
     "old_price_toman": null,
-    "category": "hygiene",
+    "category": "deo_fragrance",
     "brand": "داو",
     "colors": [],
     "shades": [],
@@ -646,7 +813,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "اسپری بدن + خانواده‌های رایحه"
+    "notes": "اسپری بدن + خانواده‌های رایحه",
+    "product_name": "اسپری بدن",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-038",
@@ -663,7 +833,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "ویرایش ۲: «باکس/پک آرایشی» غالب"
+    "notes": "ویرایش ۲: «باکس/پک آرایشی» غالب",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-039",
@@ -680,7 +853,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "بالم لب"
+    "notes": "بالم لب",
+    "product_name": "بالم لب",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-040",
@@ -697,7 +873,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "on_request",
-    "notes": "ویرایش ۲: «روتین_پوستی» غالب؛ قیمت/موجودی در دایرکت"
+    "notes": "ویرایش ۲: «روتین_پوستی» غالب؛ قیمت/موجودی در دایرکت",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-041",
@@ -714,7 +893,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "on_request",
-    "notes": "قیمت در دایرکت"
+    "notes": "قیمت در دایرکت",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-042",
@@ -731,7 +913,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "on_request",
-    "notes": "پک شیگلم؛ قیمت در دایرکت"
+    "notes": "پک شیگلم؛ قیمت در دایرکت",
+    "product_name": "پک شیگلم",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-043",
@@ -748,7 +933,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "on_request",
-    "notes": "آبرسان دراماتیکالی؛ قیمت در دایرکت"
+    "notes": "آبرسان دراماتیکالی؛ قیمت در دایرکت",
+    "product_name": "ابرسان",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-044",
@@ -765,7 +953,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "ویرایش ۲: «پوستی/مراقبتی» غالب"
+    "notes": "ویرایش ۲: «پوستی/مراقبتی» غالب",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-045",
@@ -784,7 +975,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "Rose Done؛ میکاپ صورتی"
+    "notes": "Rose Done؛ میکاپ صورتی",
+    "product_name": "محصول Rose Done",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-046",
@@ -803,7 +997,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "تناژ صورتی"
+    "notes": "تناژ صورتی",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-047",
@@ -820,7 +1017,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "ویرایش ۲: «آرایش» غالب"
+    "notes": "ویرایش ۲: «آرایش» غالب",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-048",
@@ -837,7 +1037,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "ویرایش ۲: «آرایش» غالب (بسته‌های سفارشی)"
+    "notes": "ویرایش ۲: «آرایش» غالب (بسته‌های سفارشی)",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-049",
@@ -847,14 +1050,17 @@
     "price_toman": null,
     "old_price_toman": null,
     "category": "makeup",
-    "brand": null,
+    "brand": "فارماسی",
     "colors": [],
     "shades": [],
     "sizes": [],
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "BB/CC کرم = آرایشی (پوشش‌دهنده)؛ مشاوره در دایرکت"
+    "notes": "BB/CC کرم = آرایشی (پوشش‌دهنده)؛ مشاوره در دایرکت",
+    "product_name": "بی بی کرم",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-050",
@@ -864,14 +1070,33 @@
     "price_toman": null,
     "old_price_toman": null,
     "category": "skincare",
-    "brand": null,
+    "brand": "نامبوزین",
     "colors": [],
     "shades": [],
     "sizes": [],
     "volume_ml": null,
     "spf": null,
     "stock_state": "on_request",
-    "notes": "قیمت با کامنت «پوست»؛ نامبوزین×۲ + فارم استی"
+    "notes": "قیمت با کامنت «پوست»؛ نامبوزین×۲ + فارم استی",
+    "product_name": null,
+    "products": [
+      {
+        "name": "دور چشم",
+        "brand": "نامبوزین",
+        "category": "skincare"
+      },
+      {
+        "name": "اسنس",
+        "brand": "نامبوزین",
+        "category": "skincare"
+      },
+      {
+        "name": "ابرسان",
+        "brand": "فارم استی",
+        "category": "skincare"
+      }
+    ],
+    "multi_product": true
   },
   {
     "id": "gold-051",
@@ -888,7 +1113,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "ویرایش ۲: «آرایش» غالب (پست یخچال)"
+    "notes": "ویرایش ۲: «آرایش» غالب (پست یخچال)",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-052",
@@ -905,7 +1133,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "تعاملی"
+    "notes": "تعاملی",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-053",
@@ -922,7 +1153,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "ویرایش ۲: «آرایش» غالب (برندهای سنتلا/فارماسی/اسنس)"
+    "notes": "ویرایش ۲: «آرایش» غالب (برندهای سنتلا/فارماسی/اسنس)",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-054",
@@ -939,7 +1173,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "ویرایش ۲: «آرایش» غالب"
+    "notes": "ویرایش ۲: «آرایش» غالب",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-055",
@@ -956,7 +1193,14 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "تعاملی اسکین‌کر+آرایش (چنددسته)"
+    "notes": "تعاملی اسکین‌کر+آرایش (چنددسته)",
+    "product_name": null,
+    "products": [],
+    "multi_product": false,
+    "categories": [
+      "skincare",
+      "makeup"
+    ]
   },
   {
     "id": "gold-056",
@@ -973,7 +1217,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "ویرایش ۲: «آرایش» غالب (پست تجاری)"
+    "notes": "ویرایش ۲: «آرایش» غالب (پست تجاری)",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-057",
@@ -990,7 +1237,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "شوخی"
+    "notes": "شوخی",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-058",
@@ -999,7 +1249,7 @@
     "caption": "بهترین روتین برای این فصله😍\n\nپس لطفا حذفش نکنیدد!!\n\nمام قارچی داو🍄\nاسپری داو🌸\nلوسیون بدن🌱\n\nثبت سفارش از طریق دایرکت📤\n\n#آرایش #بهداشتى #ترند #ریلز #آنلاین_شاپ",
     "price_toman": null,
     "old_price_toman": null,
-    "category": "hygiene",
+    "category": "deo_fragrance",
     "brand": "داو",
     "colors": [],
     "shades": [],
@@ -1007,7 +1257,26 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "مام/اسپری/لوسیون بدن؛ سفارش از دایرکت (بدون درخواست قیمت)"
+    "notes": "مام/اسپری/لوسیون بدن؛ سفارش از دایرکت (بدون درخواست قیمت)",
+    "product_name": "مام قارچی",
+    "products": [
+      {
+        "name": "مام قارچی",
+        "brand": "داو",
+        "category": "deo_fragrance"
+      },
+      {
+        "name": "اسپری بدن",
+        "brand": "داو",
+        "category": "deo_fragrance"
+      },
+      {
+        "name": "لوسیون بدن",
+        "brand": "داو",
+        "category": "deo_fragrance"
+      }
+    ],
+    "multi_product": true
   },
   {
     "id": "gold-059",
@@ -1024,7 +1293,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "ویرایش ۲: «آرایش» غالب (پست تجاری)"
+    "notes": "پستِ شوخی — بدون محصول؛ موجودی تأییدنشده (نکته‌ی ۳)",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-060",
@@ -1035,13 +1307,18 @@
     "old_price_toman": null,
     "category": "makeup",
     "brand": "اسنس",
-    "colors": [],
+    "colors": [
+      "صورتی"
+    ],
     "shades": [],
     "sizes": [],
     "volume_ml": null,
     "spf": null,
     "stock_state": "in_stock",
-    "notes": "⭐ «۵۵۰💸» = ۵۵۰ هزار تومان (سه‌رقمی بدون واحد)"
+    "notes": "⭐ «۵۵۰💸» = ۵۵۰ هزار تومان (سه‌رقمی بدون واحد)",
+    "product_name": "ریمل",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-061",
@@ -1058,7 +1335,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "on_request",
-    "notes": "قیمت در دایرکت"
+    "notes": "قیمت در دایرکت",
+    "product_name": "ریمل",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-062",
@@ -1075,7 +1355,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "unknown",
-    "notes": "ویرایش ۲: «آرایش» غالب (کادو/پست تجاری)"
+    "notes": "ویرایش ۲: «آرایش» غالب (کادو/پست تجاری)",
+    "product_name": null,
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-063",
@@ -1084,7 +1367,7 @@
     "caption": "اسپری داو، حس تمیزی و طراوتی که تمام روز همراهته 🤍\n\n✔️ ماندگاری بالا\n✔️ رایحه دلنشین\n✔️ مناسب استفاده روزانه\n\nبرای سفارش و استعلام قیمت دایرکت پیام بده 🌸\n\n#اسپری_داو #لوازم_بهداشتی #لوازم_ارایشی #آرایش #آنلاین_شاپ",
     "price_toman": null,
     "old_price_toman": null,
-    "category": "hygiene",
+    "category": "deo_fragrance",
     "brand": "داو",
     "colors": [],
     "shades": [],
@@ -1092,7 +1375,10 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "on_request",
-    "notes": "استعلام قیمت در دایرکت"
+    "notes": "استعلام قیمت در دایرکت",
+    "product_name": "اسپری بدن",
+    "products": [],
+    "multi_product": false
   },
   {
     "id": "gold-064",
@@ -1101,7 +1387,7 @@
     "caption": "اسپری‌های پرطرفدار داو ✨\nضدتعریق، خوشبو و مناسب استفاده روزانه.\n\nموجود در چند رایحه جذاب 🌸\n\nبرای قیمت و سفارش دایرکت پیام بده 💌\n\n#اسپری_داو #لوازم_ارایشی #لوازم_بهداشتی #محصولات_بهداشتی #ضدتعریق",
     "price_toman": null,
     "old_price_toman": null,
-    "category": "hygiene",
+    "category": "deo_fragrance",
     "brand": "داو",
     "colors": [],
     "shades": [],
@@ -1109,6 +1395,12 @@
     "volume_ml": null,
     "spf": null,
     "stock_state": "on_request",
-    "notes": "قیمت در دایرکت؛ ضدتعریق"
+    "notes": "قیمت در دایرکت؛ ضدتعریق",
+    "product_name": [
+      "ضد تعریق",
+      "اسپری"
+    ],
+    "products": [],
+    "multi_product": true
   }
 ]

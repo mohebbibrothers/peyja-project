@@ -17,9 +17,12 @@ GOLD_PATH = Path(__file__).resolve().parents[1] / "evals" / "gold-100" / "sample
 
 def _run_gold() -> dict:
     samples = json.loads(GOLD_PATH.read_text(encoding="utf-8"))
-    preds = {
-        s["id"]: ExtractionPipeline.extract_signals_fa(s.get("caption") or "") for s in samples
-    }
+    preds = {}
+    for s in samples:
+        cap = s.get("caption") or ""
+        r = ExtractionPipeline.extract_signals_fa(cap)
+        r["products"] = ExtractionPipeline.extract_multi_fa(cap)  # نکته‌ی ۱
+        preds[s["id"]] = r
     return score(samples, preds)
 
 
@@ -31,11 +34,15 @@ def test_gold_gates_pass() -> None:
 
 
 def test_gold_score_floors_locked() -> None:
-    """کفِ سخت‌تر از گیت — اعدادِ ثبت‌شده‌ی بچ ۱؛ پسرفتِ بی‌صدا ممنوع."""
+    """کفِ سخت‌تر از گیت — اعدادِ ثبت‌شده‌ی بچ ۱ (دور ۲ تأیید انسانی)؛ پسرفتِ بی‌صدا ممنوع."""
     r = _run_gold()
     assert r["price_within_2pct"] >= 0.99, f"قیمت: {r['price_within_2pct']}"
-    assert r["category_accuracy"] >= 0.90, f"دسته: {r['category_accuracy']}"
+    assert r["category_accuracy"] >= 0.94, f"دسته: {r['category_accuracy']}"
     assert r["attribute_accuracy"] >= 0.85, f"ویژگی: {r['attribute_accuracy']}"
+    # نکته‌ی ۱ و ۲ کاربر: بازیابیِ محصولاتِ چندمحصوله + نام/برند — قفلِ کیفیت
+    assert r["product_recall"] >= 0.95, f"بازیابی محصول: {r['product_recall']}"
+    assert r["name_accuracy"] >= 0.90, f"نام محصول: {r['name_accuracy']}"
+    assert r["brand_accuracy"] >= 0.95, f"برند: {r['brand_accuracy']}"
 
 
 def test_gold_dataset_is_valid() -> None:

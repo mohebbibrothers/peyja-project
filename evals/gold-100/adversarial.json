@@ -1,0 +1,102 @@
+[
+  {
+    "id": "adv-001",
+    "caption": "قیمت عالی! کرم ضد آفتاب سان‌سل فقط ۵۵۰ 💸",
+    "expected": {"price_toman": 550000, "stock_state": "in_stock", "category": "skincare"}
+  },
+  {
+    "id": "adv-002",
+    "caption": "ریمل اسنس موجود شد ۵۵۰💸",
+    "expected": {"price_toman": 550000, "stock_state": "in_stock", "category": "makeup"}
+  },
+  {
+    "id": "adv-003",
+    "caption": "کرم پودر میبلین ۳۸۰,۰۰۰",
+    "expected": {"price_toman": 380000, "stock_state": "in_stock", "category": "makeup"}
+  },
+  {
+    "id": "adv-004",
+    "caption": "فقط ۴/۸۰",
+    "expected": {"price_toman": 4800000, "stock_state": "in_stock"}
+  },
+  {
+    "id": "adv-005",
+    "caption": "پک شیگلم ۶۹۵,۰۰۰",
+    "expected": {"price_toman": 695000, "stock_state": "in_stock", "category": "makeup"}
+  },
+  {
+    "id": "adv-006",
+    "caption": "قیمت قبل ۲,۵۰۰,۰۰۰ تومان",
+    "expected": {"price_toman": null, "old_price_toman": 2500000, "stock_state": "unknown"}
+  },
+  {
+    "id": "adv-007",
+    "caption": "کرم ضد آفتاب سان‌سل",
+    "expected": {"price_toman": null, "old_price_toman": null, "stock_state": "unknown", "category": "skincare"}
+  },
+  {
+    "id": "adv-008",
+    "caption": "قیمت توافقی",
+    "expected": {"price_toman": null, "stock_state": "on_request"}
+  },
+  {
+    "id": "adv-009",
+    "caption": "موجود در چند رایحه جذاب 🌸 برای قیمت و سفارش دایرکت پیام بده 💌",
+    "expected": {"price_toman": null, "stock_state": "on_request"}
+  },
+  {
+    "id": "adv-010",
+    "caption": "کرم ضد آفتاب سان‌سل ۵۵۰",
+    "expected": {"price_toman": 550000, "stock_state": "in_stock", "category": "skincare"}
+  },
+  {
+    "id": "adv-011",
+    "caption": "شماره ۱۲ برای من چطوره؟",
+    "expected": {"shades": ["12"], "sizes": [], "colors": []}
+  },
+  {
+    "id": "adv-012",
+    "caption": "ضد آفتاب سان‌سل ۵۵۰",
+    "expected": {"price_toman": 550000, "category": "skincare"}
+  },
+  {
+    "id": "adv-013",
+    "caption": "قیمت: ۱,۲۰۰,۰۰۰ تومان",
+    "expected": {"price_toman": 1200000, "stock_state": "in_stock"}
+  },
+  {
+    "id": "adv-014",
+    "caption": "هر دو کدومشون رو بیار؟",
+    "expected": {"price_toman": null, "category": null}
+  },
+  {
+    "id": "adv-015",
+    "caption": "لوسیون بدن ویکتوریا سیکرت 🌸",
+    "expected": {"category": "deo_fragrance"}
+  },
+  {
+    "id": "adv-016",
+    "caption": "ادوپرفیوم تام فورد ۹۰ میل",
+    "expected": {"category": "perfume", "brand": "تام فورد"}
+  },
+  {
+    "id": "adv-017",
+    "caption": "بادی اسپلش بث اند بادی 🥹",
+    "expected": {"category": "hygiene"}
+  },
+  {
+    "id": "adv-018",
+    "caption": "مام قارچی داو 🍄 اسپری داو 🌸 لوسیون بدن داو",
+    "expected": {"category": "deo_fragrance", "min_products": 3}
+  },
+  {
+    "id": "adv-019",
+    "caption": "سیوش کن اگه دنبال ابرسان با کیفیت و با قیمت خوب میگردی👌🏻🤍 امپول کلاژن فارم استی",
+    "expected": {"product_name": "امپول کلاژن", "brand": "فارم استی", "category": "skincare"}
+  },
+  {
+    "id": "adv-020",
+    "caption": "سه محصول نجات بخش روتینم!🤍 ۱.دور چشم نامبوزین ۲.اسنس نامبوزین ۳.ابرسان فارم استی",
+    "expected": {"min_products": 3, "is_multi_product": true}
+  }
+]

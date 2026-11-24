@@ -15,11 +15,27 @@ from typing import Literal
 from pydantic import BaseModel, Field, model_validator
 
 # دسته‌بندی لوازم آرایشی بهداشتی (نیچ جدید پیجا)
-Category = Literal["skincare", "makeup", "perfume", "haircare", "hygiene", "other"]
+Category = Literal["skincare", "makeup", "perfume", "haircare", "hygiene", "deo_fragrance", "other"]
 StockState = Literal["in_stock", "out_of_stock", "on_request", "unknown"]
 
 MIN_PRICE_TOMAN = 1_000
 MAX_PRICE_TOMAN = 5_000_000_000
+
+
+class ProductItem(BaseModel):
+    """یک محصولِ جدا در پست‌های چندمحصوله («همه‌ی محصولاتِ پست را دربیاور»)."""
+
+    name_fa: str | None = Field(default=None, description="نام محصول مثلا «کرم آبرسان»")
+    category: Category | None = Field(default=None, description="دسته‌ی محصول")
+    brand: str | None = Field(default=None, description="برند (فارسی یا لاتین)")
+    colors: list[str] = Field(default_factory=list, description="رنگ‌ها/تناژها")
+    shades: list[str] = Field(default_factory=list, description="شماره‌ی شید")
+    sizes: list[str] = Field(default_factory=list, description="سایزها/حجم‌ها")
+    volume_ml: float | None = Field(default=None, description="حجم به میلی‌لیتر")
+    spf: int | None = Field(default=None, description="SPF اگر ذکر شده")
+    price_toman: int | None = Field(default=None, description="قیمت به تومان کامل")
+    old_price_toman: int | None = Field(default=None, description="قیمت قبل از تخفیف")
+    stock_state: StockState = Field(default="unknown", description="وضعیت موجودی")
 
 
 class SafeProductExtraction(BaseModel):
@@ -31,6 +47,13 @@ class SafeProductExtraction(BaseModel):
     )
     failure_reason: str | None = Field(default=None, description="در صورت شکست، دلیل کوتاه")
     title_fa: str | None = Field(default=None, description="عنوان کوتاه فارسی محصول")
+    product_name: str | None = Field(
+        default=None, description="نامِ محصول (عبارتِ کاتالوگی) مثلا «کرم آبرسان»"
+    )
+    products: list[ProductItem] = Field(
+        default_factory=list,
+        description="اگر پست چند محصول دارد، همه را اینجا لیست کن (تک‌محصوله = خالی)",
+    )
     category: Category | None = Field(default=None, description="دسته‌ی محصول")
     brand: str | None = Field(default=None, description="برند (فارسی یا لاتین)")
     colors: list[str] = Field(default_factory=list, description="رنگ‌ها/تناژها")
