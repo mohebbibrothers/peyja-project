@@ -131,26 +131,36 @@ async def boxapi_webhook(
         )
         await session.commit()
 
-    # پاسخ خودکار P0 — در پس‌زمینه، تا پاسخ وب‌هوک تأخیر نگیرد
+    # پاسخ خودکار P0 + پیش‌نویس کاتالوگ A1 — در پس‌زمینه، تا پاسخ وب‌هوک تأخیر نگیرد
     # (BoxAPI در صورت timeout تا ۳ بار retry می‌کند؛ پاسخ سریع = بدون پاسخ تکراری)
-    from peyja.loop.reply import build_auto_reply, send_auto_reply
+    from peyja.loop.reply import build_catalog_auto_reply, send_auto_reply
 
     # برای هر فرستنده فقط یک پاسخ خودکار (چند پیام در یک payload = یک پاسخ)
     replied_to: set[str] = set()
-    for classified in classified_list:
-        reply = build_auto_reply(classified, auto_reply_text=settings.auto_reply_text)
-        if reply and reply.recipient_id not in replied_to:
-            replied_to.add(reply.recipient_id)
-            _log.info("🤖 پاسخ خودکار زمان‌بندی شد → %s", reply.recipient_id)
-            background_tasks.add_task(send_auto_reply, reply)
-        elif classified.kind == "inbound_message":
-            _log.info(
-                "↩️ بدون پاسخ خودکار برای %s (متن=%s account=%s kind=%s)",
-                classified.ig_user_id,
-                "set" if settings.auto_reply_text else "EMPTY",
-                classified.account_id,
-                classified.kind,
+    async with factory() as session:
+        for classified in classified_list:
+            reply, shadow_draft = await build_catalog_auto_reply(
+                session,
+                classified,
+                fallback_text=settings.auto_reply_text,
+                use_catalog=settings.catalog_auto_reply,
             )
+            if shadow_draft and classified.ig_user_id:
+                _log.info(
+                    "📝 پیش‌نویس کاتالوگ (A1) برای %s: %s", classified.ig_user_id, shadow_draft
+                )
+            if reply and reply.recipient_id not in replied_to:
+                replied_to.add(reply.recipient_id)
+                _log.info("🤖 پاسخ خودکار زمان‌بندی شد → %s", reply.recipient_id)
+                background_tasks.add_task(send_auto_reply, reply)
+            elif classified.kind == "inbound_message":
+                _log.info(
+                    "↩️ بدون پاسخ خودکار برای %s (متن=%s account=%s kind=%s)",
+                    classified.ig_user_id,
+                    "set" if settings.auto_reply_text else "EMPTY",
+                    classified.account_id,
+                    classified.kind,
+                )
 
     return {"status": "accepted", "event_type": event_type}
 

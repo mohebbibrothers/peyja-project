@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from typing import Any
 
 from peyja.loop.dispatcher import ClassifiedEvent
 from peyja.loop.windows import WindowState, can_send
@@ -42,6 +43,36 @@ def build_auto_reply(
     if not allowed:
         return None
     return AutoReply(ev.account_id, ev.ig_user_id, auto_reply_text)
+
+
+async def build_catalog_auto_reply(
+    session: Any,
+    ev: ClassifiedEvent,
+    *,
+    fallback_text: str,
+    use_catalog: bool = False,
+    state: WindowState = WindowState.OPEN_24H,
+    human_agent_tag: bool = False,
+) -> tuple[AutoReply | None, str | None]:
+    """تولید پاسخ مدرک‌محور از کاتالوگ (A1 shadow draft + اختیاری در ارسال خودکار)."""
+    if ev.kind != "inbound_message" or not (ev.account_id and ev.ig_user_id):
+        return None, None
+    allowed, _reason = can_send(state, human_agent_tag=human_agent_tag)
+    if not allowed:
+        return None, None
+
+    draft_text: str | None = None
+    if ev.text and ev.text.strip():
+        from peyja.catalog_query import answer_product_query
+
+        ans = await answer_product_query(session, ev.text)
+        if ans.get("matched"):
+            draft_text = ans.get("reply_text")
+
+    final_text = (draft_text if use_catalog and draft_text else None) or fallback_text
+    if not final_text:
+        return None, draft_text
+    return AutoReply(ev.account_id, ev.ig_user_id, final_text), draft_text
 
 
 async def send_auto_reply(reply: AutoReply) -> bool:

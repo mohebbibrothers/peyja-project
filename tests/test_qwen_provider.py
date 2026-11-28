@@ -644,3 +644,42 @@ def test_vlm_bench_volume_ml_hybrid_fusion_and_brand_alias(tmp_path: Path) -> No
     assert hyb["attribute_accuracy"] == 1.0
     md = (tmp_path / "vlm-report.md").read_text(encoding="utf-8")
     assert "ترکیبی (Regex + VLM)" in md
+
+
+def test_hybrid_fuse_recovers_shop_order_cue_and_descriptive_name() -> None:
+    """سپرِ هیبرید روی نشانه‌ی «همه محصولات موجود» + انتخاب نام کاتالوگی به‌جای توضیح کلی (gold-027)."""
+    from peyja.extract.pipeline import ExtractionPipeline, hybrid_fuse_dict
+
+    cap_shop = "مامانمم خریدههه😂 همه محصولات موجود ✅ #لوازم_آرایشی #آرایش"
+    off_shop = ExtractionPipeline.extract_signals_fa(cap_shop)
+    fused_shop = hybrid_fuse_dict(
+        cap_shop,
+        off_shop,
+        {"id": "s-shop", "abstained": True, "category": None, "products": []},
+    )
+    assert fused_shop["category"] == "makeup"
+
+    cap_plea = "فقط یه ❤️ بزار واسم #اکسپلور #حمایت #لوازمآرایشی"
+    off_plea = ExtractionPipeline.extract_signals_fa(cap_plea)
+    fused_plea = hybrid_fuse_dict(
+        cap_plea,
+        off_plea,
+        {"id": "s-plea", "abstained": True, "category": None, "products": []},
+    )
+    assert fused_plea["category"] is None
+
+    cap_cmp = "اصل یا فیک؟ #نامبوزین #دورچشم #محصولات_پوستی"
+    off_cmp = ExtractionPipeline.extract_signals_fa(cap_cmp)
+    fused_cmp = hybrid_fuse_dict(
+        cap_cmp,
+        off_cmp,
+        {
+            "id": "s-cmp",
+            "abstained": False,
+            "category": "skincare",
+            "brand": "نامبوزین",
+            "product_name": "مقایسه اصل و فیک محصولات پوستی",
+            "products": [],
+        },
+    )
+    assert fused_cmp["product_name"] == "دور چشم"

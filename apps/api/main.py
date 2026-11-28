@@ -11,6 +11,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from apps.api.callback import router as callback_router
+from apps.api.catalog import router as catalog_router
 from apps.api.webhook import boxapi_webhook, boxapi_webhook_health
 from apps.api.webhook import router as webhook_router
 
@@ -43,6 +44,7 @@ app = FastAPI(
 app.include_router(webhook_router, prefix="/webhooks")
 app.include_router(webhook_router, prefix="/webhook")  # alias
 app.include_router(callback_router)  # بازگشت پس از ورود رسمی اینستاگرام
+app.include_router(catalog_router)  # کاتالوگ ایجنت‌فهم + ویترین + مانیفست UCP
 
 # مسیرهای سازگار با تنظیمات رایج داشبورد
 app.add_api_route("/webhook", boxapi_webhook, methods=["POST"], include_in_schema=False)
@@ -56,4 +58,11 @@ async def health() -> dict[str, str]:
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"service": "peyja", "docs": "/docs", "webhook": "/webhooks/boxapi"}
+    return {
+        "service": "peyja",
+        "docs": "/docs",
+        "webhook": "/webhooks/boxapi",
+        "catalog": "/catalog",
+        "api_catalog": "/api/catalog",
+        "ucp": "/.well-known/ucp",
+    }

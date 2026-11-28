@@ -238,7 +238,9 @@ async def _doctor(vlm_only: bool = False, base_url: str = "", model: str = "") -
     try:
         from peyja.provider.llm import QwenLocalProvider
 
-        qwen = QwenLocalProvider(base_url=target_url, model=target_model)
+        qwen = QwenLocalProvider(
+            base_url=target_url, model=target_model, timeout=5.0, max_retries=1
+        )
         try:
             h = await qwen.health()
         finally:
@@ -296,8 +298,15 @@ async def _doctor(vlm_only: bool = False, base_url: str = "", model: str = "") -
     provider = BoxApiOfficialProvider()
     try:
         accounts = await provider.get_accounts()
-        names = ", ".join(f"@{a.get('username')}" for a in accounts) or "بدون اکانت"
-        checks.append(("API رسمی (service/accounts)", True, names))
+        if accounts:
+            acc_strs = [
+                f"@{a.get('username')} ({'فعال' if a.get('is_active') else 'غیرفعال⚠️'}, echo={'✓' if a.get('is_echo') else '✗'})"
+                for a in accounts
+            ]
+            any_active = any(bool(a.get("is_active")) for a in accounts)
+            checks.append(("API رسمی (service/accounts)", any_active, ", ".join(acc_strs)))
+        else:
+            checks.append(("API رسمی (service/accounts)", False, "هیچ اکانتی متصل نیست"))
     except Exception as e:
         checks.append(("API رسمی (service/accounts)", False, str(e)[:80]))
     finally:
@@ -324,17 +333,28 @@ async def _doctor(vlm_only: bool = False, base_url: str = "", model: str = "") -
     except Exception as e:
         checks.append(("دیتابیس", False, str(e)[:80]))
 
-    checks.append(
-        (
-            "توکن Data API",
-            bool(settings.boxapi_data_token),
-            (
-                settings.boxapi_data_token[:8] + "..."
-                if settings.boxapi_data_token
-                else "خالی (برای کرال عمومی لازم است)"
-            ),
-        )
-    )
+    if settings.boxapi_data_token:
+        from peyja.provider.boxapi_data import BoxApiDataProvider
+
+        dp = BoxApiDataProvider()
+        try:
+            st = await dp.account_status()
+            left = int(st.get("request_left") or 0)
+            limit_val = st.get("request_limit") or "?"
+            exp = st.get("plan_expiration") or "—"
+            checks.append(
+                (
+                    "سهمیه‌ی Data API (/api/my)",
+                    left > 0,
+                    f"اکانت {st.get('username', '?')} · باقی‌مانده={left}/{limit_val} · انقضا={exp}",
+                )
+            )
+        except Exception as e:
+            checks.append(("سهمیه‌ی Data API (/api/my)", False, str(e)[:90]))
+        finally:
+            await dp.aclose()
+    else:
+        checks.append(("سهمیه‌ی Data API (/api/my)", False, "توکن خالی است"))
 
     # ── لایه‌ی وب: آیا وب‌سرور درخواست را به اپ می‌رساند؟ ──
     # هشدار مهم: نام‌های مجازی (vhost) در cPanel معمولاً روی IP عمومی سرور تعریف می‌شوند؛
@@ -664,6 +684,83 @@ def gold_sheet(
     html_out.write_text(render_verification_html(samples), encoding="utf-8")
     typer.echo(f"✅ {len(samples)} نمونه معتبر — برگه‌ی متنی: {out}")
     typer.echo(f"   برگه‌ی تعاملی (تیک‌خور): {html_out} — در مرورگر باز کنید")
+
+
+@app.command("crawl-holdout")
+def crawl_holdout(
+    gold: Path = typer.Option(Path("evals/gold-100/samples.json"), "--gold"),
+    out: Path = typer.Option(Path("evals/gold-100/batch2-candidates.json"), "--out"),
+    sheet: Path = typer.Option(Path("evals/gold-100/batch2-verification-sheet.html"), "--sheet"),
+    hashtags: str = typer.Option("قیمت,موجودی,تخفیف,لوازم_آرایشی", "--hashtags"),
+    target: int = typer.Option(25, "--target", "-n", help="تعداد هدف برای بچ ۲ (holdout)"),
+    max_per_seller: int = typer.Option(7, "--max-per-seller", help="سقف سهم هر فروشنده (≤۳۰٪)"),
+) -> None:
+    """جمع‌آوریِ کورِ بچ ۲ (`split=test` holdout — قانون ۵) از Data API با کنترل سهمیه."""
+    asyncio.run(
+        _crawl_holdout(
+            gold=gold,
+            out=out,
+            sheet=sheet,
+            hashtags=tuple(t.strip() for t in hashtags.split(",") if t.strip()),
+            target=target,
+            max_per_seller=max_per_seller,
+        )
+    )
+
+
+async def _crawl_holdout(
+    *,
+    gold: Path,
+    out: Path,
+    sheet: Path,
+    hashtags: tuple[str, ...],
+    target: int,
+    max_per_seller: int,
+) -> None:
+    from peyja.ingest.holdout import discover_holdout_batch2
+    from peyja.provider.boxapi_data import BoxApiDataProvider
+
+    dp = BoxApiDataProvider()
+    try:
+        res = await discover_holdout_batch2(
+            dp,
+            gold_path=gold,
+            out_candidates_path=out,
+            out_sheet_path=sheet,
+            hashtags=hashtags,
+            target=target,
+            max_per_seller=max_per_seller,
+        )
+    finally:
+        await dp.aclose()
+    typer.echo(json.dumps(res, ensure_ascii=False, indent=2))
+    if not res.get("ok"):
+        raise typer.Exit(code=1)
+
+
+@app.command("catalog-export")
+def catalog_export(
+    out: Path = typer.Option(Path("out"), "--out", help="پوشه‌ی خروجی کاتالوگ و ویترین"),
+    confirmed_only: bool = typer.Option(False, "--confirmed-only", help="فقط اقلام تأییدشده"),
+) -> None:
+    """خروجی کاتالوگ ایجنت‌فهم (JSON + ویترین HTML) از دیتابیس فعلی بدون مصرف Data API."""
+    asyncio.run(_catalog_export(out=out, confirmed_only=confirmed_only))
+
+
+async def _catalog_export(*, out: Path, confirmed_only: bool) -> None:
+    from peyja.catalog_query import query_catalog, render_storefront_html
+    from peyja.db import ensure_schema, get_session_factory
+
+    await ensure_schema()
+    factory = get_session_factory()
+    async with factory() as session:
+        items = await query_catalog(session, confirmed_only=confirmed_only, limit=500)
+    out.mkdir(parents=True, exist_ok=True)
+    json_path = out / "catalog-export.json"
+    html_path = out / "storefront.html"
+    json_path.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+    html_path.write_text(render_storefront_html(items), encoding="utf-8")
+    typer.echo(f"✅ {len(items)} محصول صادر شد → {json_path} و {html_path}")
 
 
 @app.command("vlm-gold")

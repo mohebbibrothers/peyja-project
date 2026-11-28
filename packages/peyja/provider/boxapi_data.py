@@ -59,6 +59,19 @@ class BoxApiDataProvider:
     async def aclose(self) -> None:
         await self._client.aclose()
 
+    async def account_status(self) -> dict[str, Any]:
+        """وضعیت اشتراک و سهمیه‌ی باقی‌مانده Data API (`GET /api/my`)."""
+        resp = await self._client.get(
+            f"{self._base_url}/api/my",
+            headers={"Authorization": f"Bearer {self._token}"},
+        )
+        if resp.status_code >= 500:
+            raise TransientApiError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+        if resp.status_code >= 400:
+            raise FatalApiError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+        data = resp.json()
+        return data if isinstance(data, dict) else {}
+
     # ----- هسته‌ی فراخوانی -----
     async def _call(self, category: str, action: str, params: dict[str, Any]) -> dict[str, Any]:
         await self._limiter.acquire()

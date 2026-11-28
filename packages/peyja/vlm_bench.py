@@ -25,12 +25,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from peyja.extract.catalog import canonical_brand, find_brand, find_product_name
+from peyja.extract.catalog import canonical_brand
 from peyja.extract.pipeline import (
     VLM_RETRY_PROMPT,
     VLM_SYSTEM_PROMPT,
     ExtractionPipeline,
     _defensive_parse,
+    hybrid_fuse_dict,
 )
 from peyja.extract.schema import SafeProductExtraction
 
@@ -223,61 +224,15 @@ def _compute_hybrid_preds(
     vlm_preds: dict[str, dict[str, Any]],
     offline_preds: dict[str, dict[str, Any]],
 ) -> dict[str, dict[str, Any]]:
-    """ترکیبِ تولیدیِ Regex قطعی + VLM معنایی (مشابه `process_raw_item`).
-
-    - شکستِ فنیِ VLM → برگشت کامل به آفلاین (فاصله‌ی ایمنی).
-    - امتناعِ آگاهانه‌ی VLM: اگر هیچ برند یا نام‌محصولِ صریحی در کاتالوگ نباشد،
-      امتناعِ VLM معتبر است (حذفِ منفی‌های کاذب مثل کپشن طنز/حمایتی)؛
-      در غیر این صورت (محصولِ صریح وجود دارد) آفلاین جایگزین می‌شود.
-    - موفقیتِ VLM: قیمتِ پرتوانِ regex در اولویت + دسته/چندمحصوله‌ی VLM + اجتماعِ ویژگی‌ها.
-    """
-    hybrid: dict[str, dict[str, Any]] = {}
-    for s in samples:
-        sid = str(s["id"])
-        cap = s.get("caption") or ""
-        vp = vlm_preds.get(sid, {})
-        op = offline_preds.get(sid, {})
-
-        if vp.get("category") == _FAILED_SENTINEL_CAT or vp.get("failed"):
-            hybrid[sid] = op
-            continue
-
-        if vp.get("abstained"):
-            if find_brand(cap) or find_product_name(cap):
-                hybrid[sid] = op
-            else:
-                hybrid[sid] = vp
-            continue
-
-        o_price = op.get("price_toman")
-        o_conf = float(op.get("confidence") or 0.0)
-        price = o_price if (o_price and o_conf >= 0.8) else (vp.get("price_toman") or o_price)
-        stock = (
-            op.get("stock_state")
-            if op.get("stock_state") == "on_request"
-            else (
-                "in_stock"
-                if price
-                else (vp.get("stock_state") or op.get("stock_state") or "unknown")
-            )
+    """ترکیبِ تولیدیِ Regex قطعی + VLM معنایی (مشترک با `process_raw_item`)."""
+    return {
+        str(s["id"]): hybrid_fuse_dict(
+            s.get("caption") or "",
+            offline_preds.get(str(s["id"]), {}),
+            vlm_preds.get(str(s["id"])),
         )
-        hybrid[sid] = {
-            "id": sid,
-            "price_toman": price,
-            "old_price_toman": op.get("old_price_toman") or vp.get("old_price_toman"),
-            "category": vp.get("category") or op.get("category"),
-            "product_name": vp.get("product_name") or op.get("product_name"),
-            "brand": vp.get("brand") or op.get("brand"),
-            "colors": list(dict.fromkeys([*(vp.get("colors") or []), *(op.get("colors") or [])])),
-            "shades": list(dict.fromkeys([*(vp.get("shades") or []), *(op.get("shades") or [])])),
-            "sizes": list(dict.fromkeys([*(vp.get("sizes") or []), *(op.get("sizes") or [])])),
-            "stock_state": stock,
-            "confidence": max(float(vp.get("confidence") or 0.0), o_conf),
-            "method": "hybrid",
-            "abstained": False,
-            "products": vp.get("products") or op.get("products") or [],
-        }
-    return hybrid
+        for s in samples
+    }
 
 
 def _percentile(values: list[float], p: float) -> float | None:

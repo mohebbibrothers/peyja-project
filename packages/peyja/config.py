@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     webhook_tolerance_seconds: int = 300
     # پاسخ خودکار اولیه (P0) به پیام‌های ورودی — خالی یعنی غیرفعال
     auto_reply_text: str = ""
+    # اگر True باشد، برای پرسش‌های محصول از کاتالوگ تاییدشده پاسخ پیشنهادی می‌سازد (قانون صفر)
+    catalog_auto_reply: bool = False
 
     # ── ذخیره‌سازی ─────────────────────────────────────────────────────────────
     database_url: str = ""  # اگر خالی باشد ← sqlite از db_path
