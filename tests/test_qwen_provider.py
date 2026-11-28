@@ -20,7 +20,14 @@ from typing import Any
 import pytest
 
 from peyja.extract.pipeline import ExtractionPipeline
-from peyja.provider.llm import LlmError, OpenAICompatProvider, QwenLocalProvider, get_ai_provider
+from peyja.provider.llm import (
+    LlmError,
+    OpenAICompatProvider,
+    QwenLocalProvider,
+    _is_private_or_local_url,
+    get_ai_provider,
+    parse_json_loose,
+)
 
 PNG_1PX = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=="
@@ -352,3 +359,219 @@ def test_vlm_benchmark_fails_soft_when_brain_down() -> None:
         run_vlm_benchmark([{"id": "x", "caption": "y"}], Path("/tmp/never.json"), _DeadAi())
     )
     assert rep["ok"] is False and "در دسترس نیست" in rep["error"]
+
+
+# ── سخت‌گیریِ Qwen3.6 / WireGuard / ضد خطای بقاء ─────────────────────────────────
+
+
+def test_parse_json_loose_strips_think_with_braces() -> None:
+    """مدلِ Qwen3.6 داخل <think> ممکن است {...} بنویسد — نباید JSON نهایی را بشکند."""
+    raw = (
+        "<think>\nاین کپشن مثل {'test': 1} یا {\"fake\": 99} است. باید قیمت بگیریم.\n</think>\n"
+        '```json\n{"extraction_successful": true, "price_toman": 550000}\n```'
+    )
+    data = parse_json_loose(raw)
+    assert data == {"extraction_successful": True, "price_toman": 550000}
+
+
+def test_parse_json_loose_handles_unclosed_think_diagnostic() -> None:
+    with pytest.raises(ValueError, match="max_tokens"):
+        parse_json_loose("<think>\nدر حال فکر کردن هستم و هنوز تمام نشده...")
+
+
+def test_reasoning_exhausted_content_none_raises_llm_error() -> None:
+    def behavior(payload: dict[str, Any], n: int) -> tuple[int, dict[str, Any]]:
+        return 200, {
+            "choices": [
+                {
+                    "finish_reason": "length",
+                    "message": {"content": None, "reasoning_content": "تفکر طولانی..."},
+                }
+            ]
+        }
+
+    with MockOpenAIServer(behavior) as srv:
+        p = OpenAICompatProvider(srv.url, "qwen3.6-35b-a3b", max_retries=1)
+        with pytest.raises(LlmError, match="reasoning_content"):
+            asyncio.run(p.chat([{"role": "user", "content": "x"}]))
+        asyncio.run(p.aclose())
+
+
+def test_400_bad_request_fails_fast_as_llm_error() -> None:
+    with MockOpenAIServer(lambda payload, n: (400, {"error": "unknown model"})) as srv:
+        p = OpenAICompatProvider(srv.url, "bad-model", max_retries=3)
+        with pytest.raises(LlmError, match="HTTP 400"):
+            asyncio.run(p.chat([{"role": "user", "content": "x"}]))
+        assert len(srv.requests) == 1  # خطای 400 نباید retry شود
+        asyncio.run(p.aclose())
+
+
+def test_wireguard_private_ip_bypasses_system_proxy() -> None:
+    assert _is_private_or_local_url("http://10.1.231.22:8000/v1") is True
+    assert _is_private_or_local_url("http://192.168.1.5:8000/v1") is True
+    assert _is_private_or_local_url("http://127.0.0.1:8000/v1") is True
+    assert _is_private_or_local_url("https://ai.boxapi.ir/v1") is False
+
+    p_priv = OpenAICompatProvider("http://10.1.231.22:8000/v1", "m")
+    p_pub = OpenAICompatProvider("https://ai.boxapi.ir/v1", "m")
+    assert p_priv._client._trust_env is False
+    assert p_pub._client._trust_env is True
+    asyncio.run(p_priv.aclose())
+    asyncio.run(p_pub.aclose())
+
+
+def test_enable_thinking_toggle_only_sent_when_explicit() -> None:
+    with MockOpenAIServer(lambda payload, n: _ok('{"ok": 1}')) as srv:
+        p_default = OpenAICompatProvider(srv.url, "m")
+        p_nothink = OpenAICompatProvider(srv.url, "m", enable_thinking=False)
+        asyncio.run(p_default.chat([{"role": "user", "content": "a"}]))
+        asyncio.run(p_nothink.chat([{"role": "user", "content": "b"}]))
+        assert "chat_template_kwargs" not in srv.requests[0]["payload"]
+        assert srv.requests[1]["payload"]["chat_template_kwargs"] == {"enable_thinking": False}
+        asyncio.run(p_default.aclose())
+        asyncio.run(p_nothink.aclose())
+
+
+def test_vlm_benchmark_abstention_multiproduct_and_no_survivorship_bias(tmp_path: Path) -> None:
+    from peyja.vlm_bench import run_vlm_benchmark
+
+    samples = [
+        {
+            "id": "g-multi",
+            "caption": "۱. دور چشم نامبوزین ۲. اسنس نامبوزین",
+            "category": "skincare",
+            "brand": "نامبوزین",
+            "products": [
+                {"name": "دور چشم", "brand": "نامبوزین", "category": "skincare"},
+                {"name": "اسنس", "brand": "نامبوزین", "category": "skincare"},
+            ],
+        },
+        {
+            "id": "g-null-ok",
+            "caption": "پیازای خیانت‌کار 😂 #آرایش",
+            "category": None,
+        },
+        {
+            "id": "g-null-crash",
+            "caption": "یه پست دیگه 😂 #آرایش",
+            "category": None,
+        },
+    ]
+
+    multi_reply = json.dumps(
+        {
+            "extraction_successful": True,
+            "title_fa": "دو محصول",
+            "category": None,  # عمدا خالی تا استنتاج از products[] آزمون شود
+            "brand": None,
+            "products": [
+                {"name_fa": "دور چشم", "category": "skincare", "brand": "نامبوزین"},
+                {"name_fa": "اسنس", "category": "skincare", "brand": "نامبوزین"},
+            ],
+            "confidence": 0.9,
+        },
+        ensure_ascii=False,
+    )
+    abstain_reply = json.dumps(
+        {
+            "extraction_successful": False,
+            "failure_reason": "پست شوخی بدون محصول",
+            "category": None,
+            "products": [],
+        },
+        ensure_ascii=False,
+    )
+
+    ai = _FakeAi([multi_reply, abstain_reply, LlmError("timeout")])
+    out = tmp_path / "vlm-predictions.json"
+    rep = asyncio.run(run_vlm_benchmark(samples, out, ai))
+
+    assert rep["ok"] is True
+    assert rep["n_total"] == 3
+    assert rep["n_scored"] == 2  # g-multi + g-null-ok
+    assert rep["n_abstained"] == 1
+    assert rep["n_failed"] == 1
+    # ضدِ خطای بقاء: g-null-crash نباید روی category=None امتیاز مفت بگیرد ← 2/3
+    assert rep["vlm_score"]["category_accuracy"] == round(2 / 3, 4)
+    # چندمحصوله‌ی بدون سطح بالا از products استنتاج شد
+    assert rep["vlm_score"]["brand_accuracy"] == 1.0
+    assert rep["vlm_score"]["product_recall"] == 1.0
+    # گزارش کنار out_path نوشته می‌شود (بدون آلودگی مخزن)
+    report_md = tmp_path / "vlm-report.md"
+    assert report_md.exists()
+    md_text = report_md.read_text(encoding="utf-8")
+    assert "p50=" in md_text and "مقایسه‌ی نقطه‌به‌نقطه" in md_text
+
+    # اجرای دوم: g-null-crash که failed بود باید دوباره تلاش شود (و ۲ مورد قبلی از کش می‌آیند)
+    ai.replies = [abstain_reply]
+    rep2 = asyncio.run(run_vlm_benchmark(samples, out, ai))
+    assert rep2["n_failed"] == 0
+    assert rep2["n_scored"] == 3
+    assert rep2["vlm_score"]["category_accuracy"] == 1.0
+
+
+def test_cli_doctor_vlm_and_vlm_gold_e2e_without_dotenv(tmp_path: Path) -> None:
+    """اثبات سرتاسری CLI واقعی بدون فایل .env (دقیقاً مثل لپ‌تاپِ متصل به WireGuard)."""
+    import os
+    import subprocess
+    import sys
+
+    repo_root = Path(__file__).resolve().parents[1]
+    gold_file = repo_root / "evals" / "gold-100" / "samples.json"
+    out_file = tmp_path / "vlm-pred.json"
+
+    def behavior(payload: dict[str, Any], n: int) -> tuple[int, dict[str, Any]]:
+        return _ok(_GOOD)
+
+    env = dict(os.environ)
+    pp = os.pathsep.join([str(repo_root / "packages"), str(repo_root)])
+    env["PYTHONPATH"] = pp + (os.pathsep + env["PYTHONPATH"] if env.get("PYTHONPATH") else "")
+
+    with MockOpenAIServer(behavior) as srv:
+        r_doc = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "peyja",
+                "doctor",
+                "--vlm",
+                "--base-url",
+                srv.url,
+            ],
+            cwd=tmp_path,  # بدون .env!
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert r_doc.returncode == 0, r_doc.stderr + r_doc.stdout
+        assert "qwen3.6-35b-a3b" in r_doc.stdout
+
+        r_bench = subprocess.run(
+            [
+                sys.executable,
+                "-m",
+                "peyja",
+                "vlm-gold",
+                "--gold",
+                str(gold_file),
+                "--out",
+                str(out_file),
+                "--base-url",
+                srv.url,
+                "--limit",
+                "2",
+                "--fresh",
+                "--no-think",
+            ],
+            cwd=tmp_path,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert r_bench.returncode == 0, r_bench.stderr + r_bench.stdout
+        assert out_file.exists()
+        assert (tmp_path / "vlm-report.md").exists()
+        assert len(srv.requests) == 2
+        assert srv.requests[0]["payload"]["chat_template_kwargs"] == {"enable_thinking": False}

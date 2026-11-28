@@ -13,12 +13,20 @@
 
 from __future__ import annotations
 
+import contextlib
 import sys
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+
+# محافظت در برابر کنسولِ غیرUTF-8 در ویندوز (cp1252/cp1256) برای خروجیِ فارسی/ایموجی
+for _stream in (sys.stdout, sys.stderr):
+    reconf = getattr(_stream, "reconfigure", None)
+    if callable(reconf):
+        with contextlib.suppress(Exception):
+            reconf(encoding="utf-8", errors="replace")
 
 try:
     from apps.cli.main import app

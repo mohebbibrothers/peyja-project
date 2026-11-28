@@ -51,16 +51,19 @@ def extract(page_id: int) -> None:
 async def _extract(page_id: int) -> None:
     from peyja.db import ensure_schema, get_session_factory
     from peyja.extract.pipeline import ExtractionPipeline
+    from peyja.provider.llm import get_ai_provider
 
     await ensure_schema()
     factory = get_session_factory()
-    async with factory() as session:
-        from peyja.provider.llm import get_ai_provider
-
-        pipeline = ExtractionPipeline(session, ai=get_ai_provider())
-        stats = await pipeline.run_for_page(page_id)
-        await session.commit()
-        typer.echo(json.dumps(stats, ensure_ascii=False, indent=2))
+    ai = get_ai_provider()
+    try:
+        async with factory() as session:
+            pipeline = ExtractionPipeline(session, ai=ai)
+            stats = await pipeline.run_for_page(page_id)
+            await session.commit()
+            typer.echo(json.dumps(stats, ensure_ascii=False, indent=2))
+    finally:
+        await ai.aclose()
 
 
 @app.command()
@@ -79,63 +82,70 @@ async def _build(username: str, out: Path) -> None:
     from peyja.ingest.crawler import Crawler
     from peyja.models import Offer, Page, Product, Variant
     from peyja.provider.boxapi_data import BoxApiDataProvider
+    from peyja.provider.llm import get_ai_provider
 
     await ensure_schema()
     t0 = time.perf_counter()
     factory = get_session_factory()
     provider = BoxApiDataProvider()
+    ai = get_ai_provider()
     out.mkdir(parents=True, exist_ok=True)
 
-    async with factory() as session:
-        crawler = Crawler(session, provider)
-        crawl_stats = await crawler.crawl_page(username)
-        from peyja.provider.llm import get_ai_provider
+    try:
+        async with factory() as session:
+            crawler = Crawler(session, provider)
+            crawl_stats = await crawler.crawl_page(username)
 
-        pipeline = ExtractionPipeline(session, ai=get_ai_provider())
-        extract_stats = await pipeline.run_for_page(
-            (await session.execute(select(Page).where(Page.username == username))).scalar_one().id
-        )
-        await session.commit()
-
-        # خروجی products.json
-        products = (await session.execute(select(Product))).scalars().all()
-        catalog = []
-        for p in products:
-            variants = (
-                (await session.execute(select(Variant).where(Variant.product_id == p.id)))
-                .scalars()
-                .all()
+            pipeline = ExtractionPipeline(session, ai=ai)
+            extract_stats = await pipeline.run_for_page(
+                (await session.execute(select(Page).where(Page.username == username)))
+                .scalar_one()
+                .id
             )
-            var_out = []
-            for v in variants:
-                offers = (
-                    (await session.execute(select(Offer).where(Offer.variant_id == v.id)))
+            await session.commit()
+
+            # خروجی products.json
+            products = (await session.execute(select(Product))).scalars().all()
+            catalog = []
+            for p in products:
+                variants = (
+                    (await session.execute(select(Variant).where(Variant.product_id == p.id)))
                     .scalars()
                     .all()
                 )
-                var_out.append(
+                var_out = []
+                for v in variants:
+                    offers = (
+                        (await session.execute(select(Offer).where(Offer.variant_id == v.id)))
+                        .scalars()
+                        .all()
+                    )
+                    var_out.append(
+                        {
+                            "sku": v.sku,
+                            "options": v.options,
+                            "offers": [
+                                {
+                                    "price_toman": o.price_minor,
+                                    "stock_state": o.stock_state,
+                                    "stale": o.stale,
+                                }
+                                for o in offers
+                            ],
+                        }
+                    )
+                catalog.append(
                     {
-                        "sku": v.sku,
-                        "options": v.options,
-                        "offers": [
-                            {
-                                "price_toman": o.price_minor,
-                                "stock_state": o.stock_state,
-                                "stale": o.stale,
-                            }
-                            for o in offers
-                        ],
+                        "title_fa": p.title_fa,
+                        "category": p.category,
+                        "attributes": p.attributes,
+                        "status": p.status,
+                        "variants": var_out,
                     }
                 )
-            catalog.append(
-                {
-                    "title_fa": p.title_fa,
-                    "category": p.category,
-                    "attributes": p.attributes,
-                    "status": p.status,
-                    "variants": var_out,
-                }
-            )
+    finally:
+        await provider.aclose()
+        await ai.aclose()
 
     elapsed = time.perf_counter() - t0
     (out / "products.json").write_text(
@@ -201,12 +211,20 @@ def extract_text(
 
 
 @app.command()
-def doctor() -> None:
-    """بررسی سلامت اتصال‌ها — API رسمی، توکن دیتا، وب‌هوک، دیتابیس."""
-    asyncio.run(_doctor())
+def doctor(
+    vlm: bool = typer.Option(
+        False,
+        "--vlm",
+        help="فقط بررسی اتصال مغزِ هوشمند (Qwen محلی) — بدون نیاز به کلیدهای .env (مناسب لپ‌تاپ + WireGuard)",
+    ),
+    base_url: str = typer.Option("", "--base-url", help="جایگزینیِ آدرسِ Qwen برای آزمون"),
+    model: str = typer.Option("", "--model", help="جایگزینیِ نامِ مدل برای آزمون"),
+) -> None:
+    """بررسی سلامت اتصال‌ها — مغز محلی، API رسمی، توکن دیتا، وب‌هوک، دیتابیس."""
+    asyncio.run(_doctor(vlm_only=vlm, base_url=base_url, model=model))
 
 
-async def _doctor() -> None:
+async def _doctor(vlm_only: bool = False, base_url: str = "", model: str = "") -> None:
     from peyja.config import get_settings
     from peyja.db import get_engine
     from peyja.provider.boxapi_official import BoxApiOfficialProvider
@@ -215,19 +233,46 @@ async def _doctor() -> None:
     checks: list[tuple[str, bool, str]] = []
 
     # ── مغزِ هوشمند (Qwen محلی) — قلبِ AI سرور ─────────────────────────────
+    target_url = base_url or settings.qwen_base_url
+    target_model = model or settings.qwen_model
     try:
         from peyja.provider.llm import QwenLocalProvider
 
-        qwen = QwenLocalProvider()
-        h = await qwen.health()
+        qwen = QwenLocalProvider(base_url=target_url, model=target_model)
+        try:
+            h = await qwen.health()
+        finally:
+            await qwen.aclose()
         if h.get("ok"):
-            models = ", ".join(h.get("models", [])[:3]) or "—"
-            checks.append(("مغزِ هوشمند (Qwen محلی)", True, f"{models} @ {settings.qwen_base_url}"))
+            found_models = h.get("models") or []
+            models_str = ", ".join(found_models[:5]) or "—"
+            lat = f" ({h.get('latency_ms')}ms)" if h.get("latency_ms") is not None else ""
+            checks.append(("مغزِ هوشمند (Qwen محلی)", True, f"{models_str} @ {target_url}{lat}"))
+            if found_models and target_model not in found_models:
+                checks.append(
+                    (
+                        "انطباق نام مدل",
+                        False,
+                        f"«{target_model}» در /models نیست! موجود: {models_str} (با --model پاس بدهید)",
+                    )
+                )
         else:
-            checks.append(("مغزِ هوشمند (Qwen محلی)", False, str(h.get("error"))[:90]))
-        await qwen.aclose()
+            checks.append(("مغزِ هوشمند (Qwen محلی)", False, str(h.get("error"))[:120]))
     except Exception as e:
-        checks.append(("مغزِ هوشمند (Qwen محلی)", False, str(e)[:90]))
+        checks.append(("مغزِ هوشمند (Qwen محلی)", False, str(e)[:120]))
+
+    if vlm_only:
+        width = max(len(c[0]) for c in checks)
+        for name, ok, detail in checks:
+            typer.echo(f"{'✅' if ok else '❌'} {name:<{width}}  {detail}")
+        if not checks[0][1]:
+            typer.echo(
+                "\nراهنمای WireGuard:\n"
+                "  ۱) مطمئن شوید تیک اتصال WireGuard در کامپیوترتان روشن است.\n"
+                f"  ۲) آزمون سریع بدون پراکسی: curl --noproxy '*' -s {target_url.rstrip('/')}/models"
+            )
+            raise typer.Exit(code=1)
+        return
 
     checks.append(
         (
@@ -629,22 +674,107 @@ def vlm_gold(
     model: str = typer.Option("", "--model", help="جایگزینیِ نامِ مدل"),
     limit: int = typer.Option(0, "--limit", help="فقط N نمونه‌ی اول (۰ = همه)"),
     fresh: bool = typer.Option(False, "--fresh", help="نادیده‌گرفتنِ کشِ قبلی"),
+    concurrency: int = typer.Option(1, "--concurrency", "-j", help="تعداد درخواستِ هم‌زمان"),
+    no_think: bool = typer.Option(
+        False,
+        "--no-think",
+        help="خاموش‌کردنِ <think> در سرورهای vLLM/SGLang (پاسخِ سریع‌تر)",
+    ),
+    max_tokens: int = typer.Option(4096, "--max-tokens", help="سقف توکنِ هر پاسخ"),
+    timeout: float = typer.Option(120.0, "--timeout", help="حداکثر زمانِ انتظار (ثانیه)"),
 ) -> None:
     """بنچ‌مارکِ مغزِ هوشمند (Qwen محلی) روی gold + مقایسه با موتورِ آفلاین (قانون ۵)."""
+    asyncio.run(
+        _vlm_gold(
+            gold=gold,
+            out=out,
+            base_url=base_url,
+            model=model,
+            limit=limit,
+            fresh=fresh,
+            concurrency=concurrency,
+            no_think=no_think,
+            max_tokens=max_tokens,
+            timeout=timeout,
+        )
+    )
+
+
+async def _vlm_gold(
+    gold: Path,
+    out: Path,
+    base_url: str,
+    model: str,
+    limit: int,
+    fresh: bool,
+    concurrency: int,
+    no_think: bool,
+    max_tokens: int,
+    timeout: float,
+) -> None:
     from peyja.provider.llm import QwenLocalProvider
     from peyja.vlm_bench import run_vlm_benchmark
 
     samples = json.loads(gold.read_text(encoding="utf-8"))
-    provider = QwenLocalProvider(base_url=base_url or None, model=model or None)
-    report = asyncio.run(run_vlm_benchmark(samples, out, provider, fresh=fresh, limit=limit))
+    provider = QwenLocalProvider(
+        base_url=base_url or None,
+        model=model or None,
+        max_tokens=max_tokens,
+        timeout=timeout,
+        enable_thinking=False if no_think else None,
+    )
+
+    def _progress(done: int, total: int, sid: str, entry: dict) -> None:
+        lat = entry.get("latency_ms")
+        lat_s = f" ({lat:.0f}ms)" if isinstance(lat, (int, float)) else ""
+        if entry.get("failed"):
+            mark = f"❌ {str(entry.get('error') or '')[:60]}"
+        elif entry.get("abstained"):
+            mark = "⏭ امتناعِ آگاهانه"
+        else:
+            mark = f"✅ {entry.get('category') or '—'}"
+        typer.echo(f"[{done}/{total}] {sid} {mark}{lat_s}")
+
+    try:
+        health = await provider.health()
+        if not health.get("ok"):
+            typer.echo(f"❌ مغزِ هوشمند در دسترس نیست: {health.get('error')}")
+            typer.echo(
+                "راهنمای اتصال (WireGuard):\n"
+                "  ۱) تیک اتصال WireGuard باید در کامپیوتر شما روشن باشد.\n"
+                f"  ۲) آزمون اتصال: curl --noproxy '*' -s {provider._base_url}/models\n"
+                "  ۳) با --base-url / --model می‌توانید آدرس یا نام مدل را عوض کنید."
+            )
+            raise typer.Exit(code=1)
+
+        models_found = health.get("models") or []
+        typer.echo(
+            f"🧠 متصل به {provider._base_url} · مدل هدف: `{provider._model}` · "
+            f"مدل‌های سرور: {', '.join(models_found) or '—'}"
+        )
+        if models_found and provider._model not in models_found:
+            typer.echo(
+                f"⚠️ هشدار: «{provider._model}» در /models نیست! اگر خطای 400/404 گرفتید، "
+                f"با `--model {models_found[0]}` اجرا کنید."
+            )
+
+        report = await run_vlm_benchmark(
+            samples,
+            out,
+            provider,
+            fresh=fresh,
+            limit=limit,
+            concurrency=concurrency,
+            on_progress=_progress,
+        )
+    finally:
+        await provider.aclose()
+
     if not report.get("ok"):
         typer.echo(f"❌ {report.get('error')}")
-        typer.echo(
-            "راهنما: این فرمان باید از ماشینِ داخلِ شبکه‌ی سرورِ مدل اجرا شود "
-            "(مثلا `curl -s http://10.1.231.22:8000/v1/models`)؛ "
-            "base-url و مدل را با --base-url / --model می‌توانید عوض کنید."
-        )
         raise typer.Exit(code=1)
+
+    typer.echo()
     typer.echo(
         json.dumps(
             {k: v for k, v in report.items() if k not in ("comparison",)},
@@ -661,13 +791,21 @@ def vlm_gold(
             "category_accuracy",
             "attribute_accuracy",
             "product_recall",
+            "product_precision",
             "name_accuracy",
             "brand_accuracy",
         ):
             ov, vv = comp.get(key), (report.get("vlm_score") or {}).get(key)
             f = lambda x: "—" if x is None else f"{x:.0%}"  # noqa: E731
             typer.echo(f"  {key}: آفلاین={f(ov)} · VLM={f(vv)}")
-    typer.echo("📄 گزارشِ کامل: out/vlm-report.md")
+    h2h = report.get("head_to_head") or {}
+    typer.echo(
+        f"\n⚔️ رو‌در‌رو: بردِ VLM={h2h.get('vlm_wins', 0)} · "
+        f"بردِ آفلاین={h2h.get('offline_wins', 0)} · "
+        f"خطای مشترک={h2h.get('both_wrong', 0)}"
+    )
+    typer.echo(f"📄 گزارشِ کامل: {report.get('report_path', 'out/vlm-report.md')}")
+    typer.echo(f"💾 پیش‌بینی‌ها: {out}")
 
 
 @app.command("gold-score")

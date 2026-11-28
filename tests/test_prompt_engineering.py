@@ -1,10 +1,12 @@
 """کیفیتِ مهندسیِ پرامپتِ VLM — قله‌ی تکنولوژیِ پرامپت‌نویسی (نکته‌ی ۴ کاربر).
 
-پرامپت باید: نقش، پروتکلِ گام‌به‌گام، دانشِ بومیِ قیمت، دام‌ها، Few-shot،
-قراردادِ خروجی، Self-check و «حدس‌ممنوعی» را داشته باشد — و retry دلیل‌دار باشد.
+پرامپت باید: نقش، پروتکلِ گام‌به‌گام، دانشِ بومیِ قیمت، دام‌ها، Few-shot
+(شامل deo_fragrance، چندمحصوله و پستِ بی‌محصول)، قراردادِ خروجی، Self-check و
+«حدس‌ممنوعی» را داشته باشد — و همه‌ی نمونه‌ها با SafeProductExtraction اعتبارسنجی شوند.
 """
 
 from peyja.extract.pipeline import VLM_RETRY_PROMPT, VLM_SYSTEM_PROMPT
+from peyja.extract.schema import SafeProductExtraction
 
 
 def test_prompt_has_professional_sections() -> None:
@@ -19,11 +21,13 @@ def test_prompt_has_professional_sections() -> None:
         assert marker in VLM_SYSTEM_PROMPT, f"بخش «{marker}» در پرامپت نیست"
 
 
-def test_prompt_encodes_iranian_price_rules() -> None:
+def test_prompt_encodes_iranian_price_and_category_rules() -> None:
     assert "4800000" in VLM_SYSTEM_PROMPT  # «۴/۸۰»
     assert "550000" in VLM_SYSTEM_PROMPT  # «۵۵۰💸»
     assert "on_request" in VLM_SYSTEM_PROMPT  # «توافقی»
     assert "shades" in VLM_SYSTEM_PROMPT  # شید = فیلد مستقل
+    assert "deo_fragrance" in VLM_SYSTEM_PROMPT  # دسته‌ی ۷گانه (بادی اسپلش/اسپری)
+    assert "بادی اسپلش" in VLM_SYSTEM_PROMPT
 
 
 def test_prompt_forbids_guessing_and_extra_text() -> None:
@@ -39,18 +43,24 @@ def test_retry_prompt_carries_reason_and_contract() -> None:
     assert "حدس" in rendered
 
 
-def test_few_shot_examples_are_valid_json() -> None:
-    """نمونه‌های داخل پرامپت باید JSON واقعی باشند (نه متنِ شکسته)."""
+def test_few_shot_examples_are_valid_schema_json() -> None:
+    """همه‌ی نمونه‌های پرامپت باید JSON معتبرِ مطابق SafeProductExtraction باشند."""
     import json
     import re
 
     blobs = re.findall(r"\{\"extraction_successful\".*?\}(?=\n|$)", VLM_SYSTEM_PROMPT)
-    assert len(blobs) == 4
+    assert len(blobs) >= 5
+    positives = 0
+    negatives = 0
     for b in blobs:
         data = json.loads(b)
-        assert data["extraction_successful"] is True
-        assert "price_toman" in data
-        assert "shades" in data or "products" in data
+        parsed = SafeProductExtraction.model_validate(data)
+        if parsed.extraction_successful:
+            positives += 1
+        else:
+            negatives += 1
+    assert positives >= 4
+    assert negatives >= 1  # پستِ بدون محصول (C1) باید نمونه‌ی امتناعِ صریح داشته باشد
 
 
 def test_prompt_addresses_multi_product_and_names() -> None:

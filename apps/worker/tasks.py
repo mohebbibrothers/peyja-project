@@ -12,8 +12,12 @@ from peyja.provider.llm import get_ai_provider
 
 async def process_extraction(page_id: int) -> dict:
     factory = get_session_factory()
-    async with factory() as session:
-        pipeline = ExtractionPipeline(session, ai=get_ai_provider())
-        stats = await pipeline.run_for_page(page_id)
-        await session.commit()
-        return stats
+    ai = get_ai_provider()
+    try:
+        async with factory() as session:
+            pipeline = ExtractionPipeline(session, ai=ai)
+            stats = await pipeline.run_for_page(page_id)
+            await session.commit()
+            return stats
+    finally:
+        await ai.aclose()

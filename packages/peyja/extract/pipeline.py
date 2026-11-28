@@ -37,7 +37,7 @@ from peyja.models import (
     Variant,
     utcnow,
 )
-from peyja.provider.llm import AiProvider
+from peyja.provider.llm import AiProvider, parse_json_loose
 
 PIPELINE_VERSION = "spine-v0.2"
 
@@ -47,54 +47,76 @@ VLM_SYSTEM_PROMPT = (
     "سال‌ها کپشنِ فروشندگانِ اینستاگرام را خوانده‌ای و با قیمت‌گذاریِ تومانی، شیدها، "
     "واژگانِ بومی («توافقی»، «دایرکت»، «۵۵۰💸») و دام‌های متنی آشنایی کامل داری.\n\n"
     "## پروتکلِ استخراج (گام‌به‌گام — دقیقاً به همین ترتیب اجرا کن)\n"
-    "۱. قیمت فعلی: فقط عددی که واقعاً قیمت است. «حجم/وزن/ساعت/تعداد/SPF/شماره» هرگز قیمت نیستند.\n"
-    "۲. قیمت قبل از تخفیف (old) فقط با نشانه‌ی صریحِ «از X به Y» یا خط‌خوردگی.\n"
-    "۳. دسته: یکی از skincare | makeup | perfume | haircare | hygiene اگر غالب مشخص است.\n"
-    "۴. نامِ محصول (عبارتِ کاتالوگی مثل «کرم آبرسان»)، برند، رنگ‌ها/تناژها، "
-    "شماره‌ی شید («شماره ۱۲» — نه رنگ نه سایز)، سایز/حجم، SPF.\n"
-    "۵. وضعیت موجودی: in_stock | out_of_stock | on_request | unknown.\n"
-    "۶. **چندمحصوله:** اگر پست چند محصول دارد، «همه» را در آرایه‌ی products بیاور "
-    "(هرکدام با name_fa و مشخصاتِ خودش) و products را خالی نگذار؛ "
-    "تک‌محصوله = products خالی و فیلدهای اصلی پر.\n\n"
+    "۱. **پستِ بی‌محصول؟** اگر کپشن صرفاً شوخی، چالش، جمله‌ی انگیزشی/حمایتی یا معرفیِ کلیِ پیج است "
+    "و هیچ محصول یا دسته‌ی مشخصی برای فروش معرفی نمی‌کند، «هرگز» از هشتگ‌ها حدس نزن — "
+    "extraction_successful=false و failure_reason کوتاه بگذار.\n"
+    "۲. **قیمت فعلی:** فقط عددی که واقعاً قیمت است. «حجم/وزن/ساعت/تعداد/SPF/شماره» هرگز قیمت نیستند.\n"
+    "۳. **قیمت قبل از تخفیف (old):** فقط با نشانه‌ی صریحِ «از X به Y»، «قیمت قبل» یا خط‌خوردگی.\n"
+    "۴. **دسته:** دقیقاً یکی از ۷ دسته‌ی مجاز:\n"
+    "   - `skincare`: مراقبت پوست (ضدآفتاب، سرم، آبرسان، تونر، دورچشم، فیس‌واش، اسکراب)\n"
+    "   - `makeup`: آرایشی (ریمل، رژلب، لیپ‌گلاس، کرم‌پودر، BB/CC کرم، سایه، کانسیلر، کانتور، پک آرایشی)\n"
+    "   - `deo_fragrance`: دئو و خوشبوکننده‌ی بدن (بادی اسپلش، اسپری بدن، مام، دئودورانت، ضدتعریق، لوسیون بدن)\n"
+    "   - `perfume`: عطر و ادکلن (عطر، ادکلن، ادوپرفیوم)\n"
+    "   - `haircare`: مراقبت مو (شامپو سر، نرم‌کننده، ماسک/روغن/سرم مو، پوست سر)\n"
+    "   - `hygiene`: بهداشتیِ غیردئو (شامپو بدن، ضدعفونی، دستمال، پد بهداشتی)\n"
+    "   - `other`: فقط وقتی محصولِ مشخصی هست که در ۶ دسته‌ی بالا جا نمی‌گیرد.\n"
+    "۵. **نامِ محصول و مشخصات:** `product_name` (عبارتِ کاتالوگی مثل «کرم ضد آفتاب» یا «بادی اسپلش»)، "
+    "`brand`، `colors`، `shades` (شماره‌ی شید مثل «شماره ۱۲» — نه رنگ نه سایز)، `sizes`، `volume_ml`، `spf`.\n"
+    "۶. **وضعیت موجودی:** `in_stock` (موجود/قیمت‌دار) | `out_of_stock` (ناموجود/تمام) | "
+    "`on_request` (استعلام قیمت در دایرکت یا کامنت: «قیمت دایرکت»، «کلمه X کامنت کن») | `unknown`.\n"
+    "۷. **چندمحصوله:** اگر پست چند محصول دارد، «همه» را در آرایه‌ی `products` بیاور "
+    "(هرکدام با `name_fa`, `category`, `brand` و مشخصاتِ خودش) و در سطحِ بالا هم دسته‌ی غالب (`category`)، "
+    "`brand` و `product_name`ِ نخستین/غالب‌ترین محصول را پر کن؛ تک‌محصوله = `products` خالی.\n\n"
     "## قواعدِ قیمتِ ایرانی (دانشِ بحرانی)\n"
     "- «X/YY» = X میلیون و Y صدمِ میلیون ⇒ «۴/۸۰» = 4800000\n"
     "- عددِ ۳رقمیِ بدونِ واحد = هزارتایی ⇒ «۵۵۰» یا «۵۵۰💸» = 550000\n"
     "- «از ۹۰۰ به ۷۵۰» ⇒ old=900000 و price=750000\n"
-    "- «توافقی/دایرکت/تماس بگیرید» ⇒ price=null و stock_state=on_request\n\n"
+    "- «توافقی/دایرکت برای قیمت/کلمهٔ X کامنت کن» ⇒ price=null و stock_state=on_request\n\n"
     "## دام‌ها (این‌ها را هرگز اشتباه نگیر)\n"
-    "- «حجم 250mil» ⇒ حجم است (volume_ml=250)، قیمت نیست.\n"
-    "- «۲۴ ساعت ماندگاری» ⇒ عددِ زمانی است، قیمت نیست.\n"
-    "- «شماره ۱۲» ⇒ شید است (shades)، نه قیمت و نه سایز.\n"
+    '- «حجم 250mil» ⇒ حجم است (volume_ml=250, sizes=["250"])، قیمت نیست.\n'
+    "- «۲۴ ساعت ماندگاری» ⇒ عددِ زمانی است، قیمت نیست و شید هم نیست.\n"
+    "- «شماره ۱۲» یا «لیپ گلاس ۴۴ کیکو» ⇒ شید است (shades)، نه قیمت و نه سایز.\n"
     "- «پالت ۱۲ رنگ» ⇒ تعدادِ رنگ است، نه شید و نه قیمت.\n"
-    "- «قیمت مناسب/خوب» بدونِ عدد ⇒ قیمت وجود ندارد (حدس نزن!).\n\n"
+    "- «قیمت مناسب/خوب» بدونِ عدد ⇒ قیمت وجود ندارد (حدس نزن!).\n"
+    "- «بادی اسپلش» و «اسپری بدن/داو» = `deo_fragrance` است (نه perfume و نه hygiene!).\n\n"
     "## نمونه‌ها (Few-shot)\n"
     "ورودی: «ریمل اسنس موجود شد ۵۵۰💸»\n"
-    'خروجی: {"extraction_successful": true, "title_fa": "ریمل اسنس", '
+    'خروجی: {"extraction_successful": true, "title_fa": "ریمل اسنس", "product_name": "ریمل", '
     '"category": "makeup", "brand": "اسنس", "price_toman": 550000, '
     '"old_price_toman": null, "colors": [], "shades": [], "sizes": [], '
-    '"volume_ml": null, "spf": null, "stock_state": "in_stock", "confidence": 0.9}\n'
+    '"volume_ml": null, "spf": null, "stock_state": "in_stock", "products": [], "confidence": 0.9}\n'
     "ورودی: «کرم ضد آفتاب سان‌سل SPF50 حجم ۵۰ میل | قیمت ۴/۸۰»\n"
-    'خروجی: {"extraction_successful": true, "title_fa": "کرم ضد آفتاب سان‌سل", '
+    'خروجی: {"extraction_successful": true, "title_fa": "کرم ضد آفتاب سان‌سل", "product_name": "کرم ضد آفتاب", '
     '"category": "skincare", "brand": "سان‌سل", "price_toman": 4800000, '
     '"old_price_toman": null, "colors": [], "shades": [], "sizes": ["50"], '
-    '"volume_ml": 50, "spf": 50, "stock_state": "in_stock", "confidence": 0.9}\n'
+    '"volume_ml": 50, "spf": 50, "stock_state": "in_stock", "products": [], "confidence": 0.9}\n'
     "ورودی: «رژلب مات شماره ۱۲ | قیمت توافقی»\n"
     'خروجی: {"extraction_successful": true, "title_fa": "رژلب مات", '
     '"product_name": "رژلب", '
     '"category": "makeup", "brand": null, "price_toman": null, '
     '"old_price_toman": null, "colors": [], "shades": ["12"], "sizes": [], '
-    '"volume_ml": null, "spf": null, "stock_state": "on_request", "confidence": 0.85}\n'
-    "ورودی: «سه محصول: ۱.دور چشم نامبوزین ۲.اسنس نامبوزین ۳.ابرسان فارم استی»\n"
-    'خروجی: {"extraction_successful": true, "title_fa": "سه محصول نجات‌بخش", '
+    '"volume_ml": null, "spf": null, "stock_state": "on_request", "products": [], "confidence": 0.85}\n'
+    "ورودی: «بادی اسپلش بث اند بادی خوشبو و موندگار»\n"
+    'خروجی: {"extraction_successful": true, "title_fa": "بادی اسپلش بث اند بادی", "product_name": "بادی اسپلش", '
+    '"category": "deo_fragrance", "brand": "بث اند بادی", "price_toman": null, '
+    '"old_price_toman": null, "colors": [], "shades": [], "sizes": [], '
+    '"volume_ml": null, "spf": null, "stock_state": "unknown", "products": [], "confidence": 0.85}\n'
+    "ورودی: «سه محصول: ۱.دور چشم نامبوزین ۲.اسنس نامبوزین ۳.ابرسان فارم استی | برای قیمت کلمه پوست کامنت کن»\n"
+    'خروجی: {"extraction_successful": true, "title_fa": "سه محصول نجات‌بخش", "product_name": "دور چشم", '
+    '"category": "skincare", "brand": "نامبوزین", '
     '"products": [{"name_fa": "دور چشم", "category": "skincare", "brand": "نامبوزین"}, '
     '{"name_fa": "اسنس", "category": "skincare", "brand": "نامبوزین"}, '
     '{"name_fa": "ابرسان", "category": "skincare", "brand": "فارم استی"}], '
-    '"price_toman": null, "stock_state": "in_stock", "confidence": 0.85}\n\n'
+    '"price_toman": null, "stock_state": "on_request", "confidence": 0.85}\n'
+    "ورودی: «پیازای خیانت‌کار همیشه باید بد بو بمونن 😂🧅 #ترند #آرایش»\n"
+    'خروجی: {"extraction_successful": false, "failure_reason": "پست سرگرمی/چالش بدون محصول مشخص", '
+    '"category": null, "product_name": null, "brand": null, "price_toman": null, '
+    '"colors": [], "shades": [], "sizes": [], "products": [], "confidence": 0.0}\n\n'
     "## قراردادِ خروجی (Output Contract)\n"
-    "- فقط و فقط یک شیءِ JSON مطابق اسکیمای داده‌شده؛ بدون هیچ متن، توضیح یا حصارِ کد.\n"
+    "- فقط و فقط یک شیءِ JSON مطابق اسکیمای داده‌شده؛ بدون هیچ متن، حاشیه، `<think>` یا حصارِ کد.\n"
     "- قیمت‌ها = عددِ صحیحِ تومانِ کامل (مثلا 4800000)؛ لیست‌ها خالی ولی هرگز null.\n"
-    "- اگر اطلاعات کافی نیست extraction_successful=false با دلیلِ کوتاه؛ «حدسِ مطمئن‌نشده» ممنوع.\n"
-    "- پیش از پاسخ، خروجی‌ات را با «دام‌ها» بالا دوباره بسنج (Self-check) و سپس JSON نهایی را بده."
+    "- اگر اطلاعات کافی نیست یا پست محصولی ندارد extraction_successful=false با دلیلِ کوتاه؛ «حدسِ مطمئن‌نشده» ممنوع.\n"
+    "- پیش از پاسخ، خروجی‌ات را بی‌صدا با «دام‌ها» بالا بسنج (Self-check) و سپس فقط JSON نهایی را بده."
 )
 
 VLM_RETRY_PROMPT = (
@@ -243,10 +265,12 @@ class ExtractionPipeline:
         price_toman, method, confidence = _merge_price(regex_price, vlm, signals.prices.on_request)
 
         title = (vlm.title_fa if vlm and vlm.title_fa else None) or _derive_title(caption_text)
-        category = (vlm.category if vlm and vlm.category else None) or _guess_category(
-            caption_text + " " + " ".join(signals.hashtags)
+        category = (
+            (vlm.category if vlm and vlm.category else None)
+            or _guess_category(caption_text + " " + " ".join(signals.hashtags))
+            or find_product_category(caption_text)
         )
-        brand = vlm.brand if vlm else None
+        brand = (vlm.brand if vlm and vlm.brand else None) or find_brand(caption_text)
         colors = (vlm.colors if vlm and vlm.colors else None) or signals.colors
         shades = (vlm.shades if vlm and vlm.shades else None) or signals.shades
         sizes = (vlm.sizes if vlm and vlm.sizes else None) or signals.sizes
@@ -256,15 +280,18 @@ class ExtractionPipeline:
             else ("in_stock" if price_toman else (vlm.stock_state if vlm else "unknown"))
         )
 
-        # ── فهرستِ محصولات: چندمحصوله‌ی VLM (همه‌ی محصولات) یا تک‌محصوله‌ی ادغام‌شده ──
-        single_name = find_product_name(caption_text)
+        # ── فهرستِ محصولات: چندمحصوله‌ی VLM ← یا چندمحصوله‌ی آفلاین ← یا تک‌محصوله ──
+        single_name = (vlm.product_name if vlm and vlm.product_name else None) or find_product_name(
+            caption_text
+        )
+        multi_offline = ExtractionPipeline.extract_multi_fa(caption_text)
         if vlm and vlm.products:
             specs: list[dict[str, Any]] = [
                 {
                     "name": p.name_fa,
                     "title": p.name_fa or _derive_title(caption_text),
-                    "category": p.category,
-                    "brand": p.brand,
+                    "category": p.category or category,
+                    "brand": p.brand or brand,
                     "colors": p.colors or [],
                     "shades": p.shades or [],
                     "sizes": p.sizes or [],
@@ -278,6 +305,27 @@ class ExtractionPipeline:
                     "confidence": max(vlm.confidence, 0.5),
                 }
                 for p in vlm.products
+            ]
+        elif len(multi_offline) > 1:
+            specs = [
+                {
+                    "name": m["product_name"],
+                    "title": m["product_name"] or _derive_title(m["span"]),
+                    "category": m["category"] or category,
+                    "brand": m["brand"] or brand,
+                    "colors": m["colors"],
+                    "shades": m["shades"],
+                    "sizes": m["sizes"],
+                    "volume_ml": None,
+                    "spf": None,
+                    "price": m["price_toman"],
+                    "old_price": m["old_price_toman"],
+                    "old_conf": 0.8,
+                    "stock": m["stock_state"] if m["stock_state"] != "unknown" else stock_state,
+                    "method": m["method"],
+                    "confidence": max(float(m["confidence"]), confidence * 0.5),
+                }
+                for m in multi_offline
             ]
         else:
             specs = [
@@ -301,6 +349,7 @@ class ExtractionPipeline:
             ]
 
         stats = {
+            "processed": 1,
             "products": 0,
             "offers": 0,
             "vlm_calls": vlm_calls,
@@ -459,15 +508,8 @@ class ExtractionPipeline:
 
 
 def _defensive_parse(text: str) -> dict[str, Any]:
-    """parse مقاوم: حصارهای کد، متن اضافه، JSON شکسته."""
-    t = text.strip()
-    if t.startswith("```"):
-        t = re.sub(r"^```[a-zA-Z]*\n?", "", t)
-        t = re.sub(r"\n?```$", "", t)
-    start, end = t.find("{"), t.rfind("}")
-    if start != -1 and end != -1:
-        t = t[start : end + 1]
-    return json.loads(t)
+    """parse مقاوم: حذف `<think>`، حصارهای کد، متن اضافه، JSON شکسته."""
+    return parse_json_loose(text)
 
 
 def _merge_price(
