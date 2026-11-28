@@ -1,4 +1,4 @@
-"""تست‌های آفلاین کرالر سبک اینستاگرام (`ig_lite`) و ساخت بچ ۲ بدون نشت برچسب."""
+"""تست‌های آفلاین کرالر سبک اینستاگرام (`ig_lite`) — GraphQL 2026، `data-sjs`، REST و بچ ۲."""
 
 from __future__ import annotations
 
@@ -11,13 +11,16 @@ import httpx
 
 from peyja.ingest.ig_lite import (
     IgLiteCrawler,
+    collect_media_nodes_from_tree,
+    extract_tokens_from_html,
     ingest_ig_raw_items,
     normalize_ig_web_item,
+    safe_json_loads,
 )
 
 
 def test_normalize_ig_v1_and_graphql_shapes() -> None:
-    """هر دو قالب پاسخ وب اینستاگرام (v1 items و GraphQL edges) باید به یک قالب واحد دربیایند."""
+    """قالب پاسخ وب اینستاگرام (v1، GraphQL ۲۰۲۶ `edges[].node` و GraphQL قدیمی) باید یکدست شود."""
     v1_item = {
         "pk": "399001",
         "id": "399001_55",
@@ -56,26 +59,169 @@ def test_normalize_ig_v1_and_graphql_shapes() -> None:
     assert n2["caption"]["text"].startswith("ادکلن تام فورد")
 
 
-def test_ig_lite_crawler_fallback_and_rate_limit_graceful_stop() -> None:
-    """پشتیبانی از fallback به web_profile_info و حفظ داده‌ی قبلی هنگام دریافت 429."""
+def test_safe_json_tokens_and_tree_walker() -> None:
+    """حذف پیشوند `for (;;);`، کشف `fb_dtsg`/`lsd`/`doc_id` از HTML و استخراج گره‌های پست."""
+    assert safe_json_loads('for (;;);{"ok":true}') == {"ok": True}
+    assert safe_json_loads("<html>not json</html>") is None
+
+    html = (
+        '"DTSGInitialData",[],{"token":"DTSG_XYZ123"},'
+        '"LSD",[],{"token":"LSD_999"},'
+        '"csrf_token":"CSRF_ABC",'
+        '"PolarisProfilePostsQuery","id":"39902305416081839"'
+    )
+    toks = extract_tokens_from_html(html)
+    assert toks["fb_dtsg"] == "DTSG_XYZ123"
+    assert toks["lsd"] == "LSD_999"
+    assert toks["csrftoken"] == "CSRF_ABC"
+    assert ("PolarisProfilePostsQuery", "39902305416081839") in toks["doc_ids"]
+
+    payload = {
+        "data": {
+            "xdt_api__v1__feed__user_timeline_graphql_connection": {
+                "edges": [
+                    {
+                        "node": {
+                            "pk": "701",
+                            "code": "C701",
+                            "caption": {"text": "ریمل ایزادورا ۹۹۰ تومان"},
+                            "user": {"pk": "9", "username": "rozhashop.ir"},
+                            "image_versions2": {"candidates": [{"url": "https://cdn/701.jpg"}]},
+                            "carousel_media": [
+                                {"pk": "701_child", "image_versions2": {"candidates": []}}
+                            ],
+                        }
+                    }
+                ]
+            }
+        }
+    }
+    nodes = collect_media_nodes_from_tree(payload)
+    assert len(nodes) == 1
+    assert nodes[0]["pk"] == "701"
+
+
+def test_ig_lite_crawler_graphql_and_html_sjs_2026() -> None:
+    """مسیر واقعی ۲۰۲۶: برداشت توکن از HTML + `POST /graphql/query` با `for (;;);` و کش کردن مسیر برنده."""
+    calls: list[tuple[str, str]] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
-        if "/api/v1/feed/user/shop_one/username/" in path:
-            return httpx.Response(
-                200,
-                json={
-                    "items": [
-                        {
-                            "pk": "101",
-                            "code": "C1",
-                            "caption": {"text": "ریمل اسنس اصل ۵۵۰ تومان #آرایشی"},
-                            "user": {"pk": 1, "username": "shop_one"},
-                            "image_versions2": {"candidates": [{"url": "https://img/1.jpg"}]},
-                        }
-                    ]
-                },
+        calls.append((request.method, path))
+        if path == "/dokhtaronee_shop/":
+            # صفحه‌ی HTML حاوی fb_dtsg/lsd/doc_id بدون پست توکار تا مسیر GraphQL تست شود
+            html = (
+                '<html><script>"DTSGInitialData",[],{"token":"DTSG_LIVE"},'
+                '"LSD",[],{"token":"LSD_LIVE"},'
+                '"PolarisProfilePostsQuery","id":"39902305416081839"</script></html>'
             )
+            return httpx.Response(200, text=html)
+        if path == "/graphql/query":
+            body_text = request.content.decode("utf-8")
+            assert "fb_dtsg=DTSG_LIVE" in body_text
+            if "dokhtaronee_shop" in body_text:
+                gql = {
+                    "data": {
+                        "xdt_api__v1__feed__user_timeline_graphql_connection": {
+                            "edges": [
+                                {
+                                    "node": {
+                                        "pk": "111",
+                                        "code": "D111",
+                                        "caption": {"text": "تینت لب شیگلم ۴۲۰ هزار تومان"},
+                                        "user": {"pk": "1", "username": "dokhtaronee_shop"},
+                                        "image_versions2": {
+                                            "candidates": [{"url": "https://img/d111.jpg"}]
+                                        },
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+                return httpx.Response(200, text="for (;;);" + json.dumps(gql, ensure_ascii=False))
+            if "isatiis_cosmetics" in body_text:
+                gql2 = {
+                    "data": {
+                        "xdt_api__v1__feed__user_timeline_graphql_connection": {
+                            "edges": [
+                                {
+                                    "node": {
+                                        "pk": "222",
+                                        "code": "I222",
+                                        "caption": {"text": "کرم آبرسان کلینیک ۱/۸۵۰ تومان"},
+                                        "user": {"pk": "2", "username": "isatiis_cosmetics"},
+                                        "image_versions2": {
+                                            "candidates": [{"url": "https://img/i222.jpg"}]
+                                        },
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+                return httpx.Response(200, text="for (;;);" + json.dumps(gql2, ensure_ascii=False))
+        return httpx.Response(404, text="not found")
+
+    async def _run() -> dict[str, Any]:
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            crawler = IgLiteCrawler(sessionid="test_sid", client=client, delay_range=(0.0, 0.0))
+            return await crawler.crawl_shops(["dokhtaronee_shop", "isatiis_cosmetics"], per_shop=5)
+
+    res = asyncio.run(_run())
+    assert res["ok"] is True
+    assert res["count"] == 2
+    assert res["sellers"] == {"dokhtaronee_shop": 1, "isatiis_cosmetics": 1}
+    # فروشگاه دوم باید مستقیماً از _winning_gql برود و دیگر HTML نگیرد
+    assert ("GET", "/isatiis_cosmetics/") not in calls
+
+
+def test_ig_lite_crawler_data_sjs_rest_fallback_and_429_stop() -> None:
+    """پشتیبانی از `data-sjs` توکار در HTML، پشتیبانِ REST و توقف محترمانه در ۴۲۹."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        path = request.url.path
+        if path == "/shop_sjs/":
+            embedded = {
+                "require": [
+                    [
+                        "ScheduledServerJS",
+                        "handle",
+                        None,
+                        [
+                            {
+                                "__bbox": {
+                                    "xdt_api__v1__feed__user_timeline_graphql_connection": {
+                                        "edges": [
+                                            {
+                                                "node": {
+                                                    "pk": "101",
+                                                    "code": "S101",
+                                                    "caption": {
+                                                        "text": "ریمل اسنس اصل ۵۵۰ تومان #آرایشی"
+                                                    },
+                                                    "user": {"pk": "1", "username": "shop_sjs"},
+                                                    "image_versions2": {
+                                                        "candidates": [{"url": "https://img/1.jpg"}]
+                                                    },
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        ],
+                    ]
+                ]
+            }
+            html = (
+                '<html><script type="application/json" data-sjs>'
+                + json.dumps(embedded, ensure_ascii=False)
+                + "</script></html>"
+            )
+            return httpx.Response(200, text=html)
+        if path == "/shop_two/":
+            return httpx.Response(404, text="no html")
         if "/api/v1/feed/user/shop_two/username/" in path:
             return httpx.Response(404, json={"status": "fail"})
         if (
@@ -109,22 +255,22 @@ def test_ig_lite_crawler_fallback_and_rate_limit_graceful_stop() -> None:
                     }
                 },
             )
-        if "/api/v1/feed/user/shop_three/username/" in path:
-            return httpx.Response(429, json={"message": "rate_limit"})
-        raise AssertionError(f"Unexpected request: {request.url}")
+        if path == "/shop_three/":
+            return httpx.Response(429, text="rate limit")
+        return httpx.Response(404, text="not found")
 
     async def _run() -> dict[str, Any]:
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
             crawler = IgLiteCrawler(sessionid="test_sid", client=client, delay_range=(0.0, 0.0))
             return await crawler.crawl_shops(
-                ["farmashop_aras", "shop_one", "shop_two", "shop_three"], per_shop=5
+                ["farmashop_aras", "shop_sjs", "shop_two", "shop_three"], per_shop=5
             )
 
     res = asyncio.run(_run())
     assert res["ok"] is True
     assert res["count"] == 2
     assert "farmashop_aras" not in res["sellers"]
-    assert res["sellers"] == {"shop_one": 1, "shop_two": 1}
+    assert res["sellers"] == {"shop_sjs": 1, "shop_two": 1}
     assert "429" in (res["stopped_reason"] or "")
 
 
@@ -158,7 +304,7 @@ def test_ingest_ig_raw_items_downloads_media_and_builds_blind_holdout(
             "pk": "502",
             "code": "P502",
             "caption": {"text": "سرم ویتامین سی روشن کننده پوست قیمت در دایرکت #روتین_پوستی"},
-            "user": {"pk": 12, "username": "yona_.cosmetic"},
+            "user": {"pk": 12, "username": "rozhia.shop"},
             "image_versions2": {"candidates": [{"url": "https://cdn.example.com/serum.jpg"}]},
         },
     ]
