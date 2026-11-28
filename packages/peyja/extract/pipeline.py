@@ -438,7 +438,15 @@ class ExtractionPipeline:
             "rejected": 0,
         }
         for spec in specs:
-            route = route_by_confidence(spec["confidence"], self.settings.extract_review_floor)
+            route_conf = float(spec["confidence"])
+            if (
+                spec["price"] is None
+                and route_conf < self.settings.extract_review_floor
+                and spec["category"]
+                and (spec["brand"] or find_product_name(spec["name"] or ""))
+            ):
+                route_conf = max(route_conf, 0.55)
+            route = route_by_confidence(route_conf, self.settings.extract_review_floor)
             status = {"store": "confirmed", "review": "candidate", "reject": "rejected"}[route]
             stats[{"store": "stored", "review": "human_review", "reject": "rejected"}[route]] += 1
 

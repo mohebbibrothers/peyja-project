@@ -48,8 +48,13 @@ _QUERY_STOP = {
 
 
 def _token_hits(token: str, searchable: str) -> bool:
-    """تطبیق مرزداری‌شده برای توکن جستجو (جلوگیری از تطبیق کاذب «استی» داخل «استیکی»)."""
-    return bool(re.search(rf"(?<![a-z\u0600-\u06ff]){re.escape(token)}", searchable))
+    """تطبیق مرزداری‌شده از دو طرف برای توکن جستجو («استی» داخل «استیکی» نمی‌خورد)."""
+    return bool(
+        re.search(
+            rf"(?<![a-z\u0600-\u06ff]){re.escape(token)}(?:هایی|های|ها|ی|ه)?(?![a-z\u0600-\u06ff])",
+            searchable,
+        )
+    )
 
 
 async def query_catalog(
