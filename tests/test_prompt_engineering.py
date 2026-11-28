@@ -80,3 +80,54 @@ def test_prompt_v2_covers_lip_balm_colors_and_strict_abstention() -> None:
     assert "volume_ml" in VLM_SYSTEM_PROMPT
     assert "اسنسصورتی" in VLM_SYSTEM_PROMPT
     assert "فقط و فقط" in VLM_SYSTEM_PROMPT and "طنز" in VLM_SYSTEM_PROMPT
+    assert "اکثریت شمارش" in VLM_SYSTEM_PROMPT
+
+
+def test_hybrid_fusion_and_latin_series_preservation() -> None:
+    """منطق تلفیق دور ۴: اکثریت غیرهمپوشان، نجات روتین پوستی و حفظ نام سری لاتین."""
+    from peyja.extract.catalog import find_latin_series
+    from peyja.extract.pipeline import (
+        ExtractionPipeline,
+        body_is_balanced_mixed,
+        count_category_signals,
+        hybrid_fuse_dict,
+        prefer_product_name,
+    )
+
+    assert find_latin_series("با Rose Done فارماسی میکاپ بساز") == "Rose Done"
+    assert find_latin_series("کرم ضدآفتاب SPF50") is None
+
+    assert prefer_product_name("پالت سایه", None, "با Rose Done فارماسی") == "پالت سایه Rose Done"
+    assert prefer_product_name("محصولات پوستی", "دور چشم", "#دورچشم") == "دور چشم"
+
+    # دو هشتگ مراقبت پوستی vs یک آرایشی → اکثریت غیرهمپوشان بر جهت‌گیری ترتیبی غلبه می‌کند
+    cap_adv = "همه محصولات موجود #لوازم_آرایشی #محصولات_مراقبتی #روتین_پوستی #لوازم_بهداشتی"
+    counts, _ = count_category_signals(cap_adv)
+    assert counts["skincare"] == 2 and counts["makeup"] == 1
+    off_adv = ExtractionPipeline.extract_signals_fa(cap_adv)
+    fused_adv = hybrid_fuse_dict(
+        cap_adv,
+        off_adv,
+        {"id": "x1", "category": "makeup", "product_name": "محصولات آرایشی", "abstained": False},
+    )
+    assert fused_adv["category"] == "skincare"
+
+    # پست روتین پوستی با امتناع کاذب VLM نجات می‌یابد؛ معرفی متعادل پیج مختلط محترم می‌ماند
+    cap_routine = "پوست زیباتر اتفاقی نیست! مشاوره رایگان #روتین_پوست #پوست_خشک #مراقبت_پوست"
+    off_routine = ExtractionPipeline.extract_signals_fa(cap_routine)
+    res_routine = hybrid_fuse_dict(cap_routine, off_routine, {"id": "x2", "abstained": True})
+    assert res_routine["category"] == "skincare"
+
+    cap_intro = "این فقط بخشی از محصولات پیجمه، محصولات آرایشی و پوستی اصل #آرایشی #بهداشتی"
+    assert body_is_balanced_mixed(cap_intro) is True
+    off_intro = ExtractionPipeline.extract_signals_fa(cap_intro)
+    res_intro = hybrid_fuse_dict(
+        cap_intro, off_intro, {"id": "x3", "category": None, "abstained": True}
+    )
+    assert res_intro["category"] is None and res_intro["abstained"] is True
+
+    # یک هشتگ پراکنده در پست گدایی لایک، امتناع VLM را نمی‌شکند
+    cap_beg = "فقط یه ❤️ بزار واسم تا دیده بشم #حمایت #میکاپ"
+    off_beg = ExtractionPipeline.extract_signals_fa(cap_beg)
+    res_beg = hybrid_fuse_dict(cap_beg, off_beg, {"id": "x4", "category": None, "abstained": True})
+    assert res_beg["category"] is None and res_beg["abstained"] is True

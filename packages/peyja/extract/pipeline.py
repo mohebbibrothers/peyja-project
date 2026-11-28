@@ -10,8 +10,11 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import re
+from collections import Counter
+from pathlib import Path
 from typing import Any
 
 from pydantic import ValidationError
@@ -23,6 +26,7 @@ from peyja.extract.caption import analyze_caption
 from peyja.extract.catalog import (
     canonical_brand,
     find_brand,
+    find_latin_series,
     find_product_category,
     find_product_name,
     split_product_spans,
@@ -32,6 +36,7 @@ from peyja.extract.schema import SafeProductExtraction, route_by_confidence
 from peyja.models import (
     CaptionVersion,
     Evidence,
+    MediaFile,
     Offer,
     Product,
     RawItem,
@@ -40,7 +45,7 @@ from peyja.models import (
 )
 from peyja.provider.llm import AiProvider, parse_json_loose
 
-PIPELINE_VERSION = "spine-v0.2"
+PIPELINE_VERSION = "spine-v0.4"
 
 VLM_SYSTEM_PROMPT = (
     "## نقش (Role)\n"
@@ -48,18 +53,19 @@ VLM_SYSTEM_PROMPT = (
     "سال‌ها کپشنِ فروشندگانِ اینستاگرام را خوانده‌ای و با قیمت‌گذاریِ تومانی، شیدها، "
     "هشتگ‌های فروشگاهی، واژگانِ بومی («توافقی»، «دایرکت»، «۵۵۰💸») و دام‌های متنی آشنایی کامل داری.\n\n"
     "## پروتکلِ استخراج (گام‌به‌گام — دقیقاً به همین ترتیب اجرا کن)\n"
-    "۱. **اصلِ دسته‌یابی در ریلز و پست‌های فروشگاه‌های اینستاگرام:**\n"
-    "   در اینستاگرام ایران، بسیاری از پست‌های فروشِ محصول با لحن شوخ، ایموجی 😂، POV یا جمله‌ی دعوت به تعامل شروع می‌شوند "
-    "(مثل «مامانمم خریدههه😂»، «برای دخترایی که...😂»، «سطح انتظارات...😂»، «بفرست براش»، «کدوم برند؟ سنتلا/فارماسی/اسنس»)؛ "
-    "چون تصویر/نام محصول در ویدیوست. این‌ها **پستِ فروشگاهی واقعی‌اند** و نباید صرفاً به‌خاطر شوخی یا نبود نامِ دقیقِ کالا رد شوند:\n"
-    "   - اگر هر نشانه‌ی فروشگاهی («همه محصولات موجود»، «ثبت سفارش دایرکت»، «دایرکت پیام بدین») وجود دارد، "
-    "یا محصول/برند (حتی فقط در هشتگ مثل `#نامبوزین`، `#اسپری_داو`، `#پک_آرایشی`، `#اسکین_کر`، `#روتین_پوستی`، `#آرایش`)، "
-    "یا اکثریت روشنِ هشتگ‌ها/برندها به یک دسته‌ی غالب اشاره می‌کند، "
-    "**حتماً** `extraction_successful=true` و `category`ِ غالب را برگردان.\n"
-    "   - **فقط و فقط** وقتی `category: null` و `extraction_successful=false` بگذار که پست:\n"
-    "     (الف) طنز یا متنِ روزمره‌ی بی‌ربط به کالا باشد (بدون نشانه‌ی موجودی/سفارش و بدون محصول/برند در جمله؛ مثل «پیازای خیانت‌کار 😂🧅»، «😌😂 #فان #چالش»)، یا\n"
-    "     (ب) صرفاً درخواست قلب/لایک/حمایت برای دیده‌شدن پیج باشد («فقط یه ❤️ بزار واسم تا دیده بشم #حمایت») بدون نشانه‌ی فروش/سفارش/محصول، یا\n"
-    "     (ج) معرفیِ کلیِ کل پیجِ مختلط با **تساویِ دو دسته‌ی آرایشی و پوستی** باشد («این فقط بخشی از محصولات پیجمه، آرایشی و پوستی اصل...» یا تساوی هشتگ `#محصولات_آرایشی` و `#روتین_پوستی`).\n"
+    "۱. **اصلِ دسته‌یابی در فروشگاه‌های اینستاگرام ایران:**\n"
+    "   بیشتر پست‌های یک فروشگاه آرایشی‌بهداشتی — از جمله ریلزهای شوخ («مامانمم خریدههه😂»، «POV»، «بفرست براش»)، "
+    "پست‌های مراقبت/روتین پوستی («پوست زیباتر»، `#روتین_پوستی`, `#ضد_جوش`, `#مراقبت_پوست`)، "
+    "مسابقه/قرعه‌کشی محصول («قرعه‌کشی سایه و رژگونه»)، نظرسنجی برند («سنتلا/فارماسی/اسنس»)، "
+    "پست‌های «همه محصولات موجود» یا «پک آرایشی» — **همگی دسته‌ی مشخص فروشگاهی دارند (`extraction_successful=true`)**؛ "
+    "حتی اگر قیمت یا نامِ دقیقِ محصول در کپشن نیامده باشد (چون محصول در تصویر/ویدیوست).\n"
+    "   - وقتی هشتگ‌های چند دسته کنار هم آمده‌اند، بر اساس **اکثریت شمارش** دسته‌ی غالب را انتخاب کن "
+    "(مثلاً ۲ هشتگ پوستی در برابر ۱ آرایشی ← `skincare`، نه صرفاً اولین هشتگ!).\n"
+    "   - **فقط و فقط** در این ۲ حالت `category: null` و `extraction_successful=false` بگذار:\n"
+    "     (الف) طنز یا متن غیرمرتبط با آرایشی/پوستی بدون محصول و بدون دسته‌ی فروش («پیازای خیانت‌کار 😂🧅»، «😌😂 #فان #چالش») "
+    "یا صرفاً درخواست لایک/کامنتِ پیج («فقط یه ❤️ بزار واسم #حمایت»).\n"
+    "     (ب) معرفیِ کلیِ کل پیج با **تساویِ دو دسته‌ی «آرایشی» و «پوستی»** در متن ("
+    "«این فقط بخشی از محصولات پیجمه، محصولات آرایشی و پوستی اصل...» بدون نام محصول خاص و بدون اکثریت یک دسته).\n"
     "۲. **قیمت فعلی:** فقط عددی که واقعاً قیمت است. «حجم/وزن/ساعت/تعداد/SPF/شماره» هرگز قیمت نیستند.\n"
     "۳. **قیمت قبل از تخفیف (old):** فقط با نشانه‌ی صریحِ «از X به Y»، «قیمت قبل» یا خط‌خوردگی.\n"
     "۴. **دسته:** دقیقاً یکی از ۷ دسته‌ی مجاز:\n"
@@ -72,8 +78,9 @@ VLM_SYSTEM_PROMPT = (
     "   - `other`: فقط محصول مشخصی بیرون از ۶ دسته‌ی بالا.\n"
     "۵. **نامِ محصول، برند و مشخصات:**\n"
     '   - `brand` را همیشه جداگانه پر کن و به نامِ محصول نچسبان — حتی اگر جمع فارسی باشد («اسپریای داو»/«اسپری داو» ⇒ `product_name="اسپری بدن"`, `brand="داو"`) یا فقط در هشتگ بیاید (`#اسپری_داو`, `#نامبوزین`).\n'
-    "   - عبارتِ کامل و کاتالوگیِ محصول را حفظ کن («رژلب مات»، «مام قارچی»، «شامپو بدون سولفات»، «سرم ضد ریزش»)؛ "
-    "اگر نامِ مدل/سریِ لاتین یا فارسی در متن هست (مثل `Rose Done`) حتماً داخل `product_name` نگهش دار (مثلاً `پالت سایه Rose Done`).\n"
+    "   - عبارتِ کامل و کاتالوگیِ محصول را حفظ کن («رژلب مات»، «مام قارچی»، «شامپو بدون سولفات»، «سرم ضد ریزش»).\n"
+    "   - **حفظ نام مدل/سری لاتین:** اگر نامِ مدل/سریِ لاتین کنار برند در متن است (مثل `Rose Done` در «با Rose Done فارماسی...») "
+    "حتماً آن نام لاتین را در `product_name` بیاور (مثل `Rose Done` یا `پالت سایه Rose Done`) و هرگز حذفش نکن!\n"
     "   - اگر نامِ محصول فقط در هشتگ آمده (`#دورچشم`, `#ابرسان`) همان نامِ کاتالوگی را در `product_name` بگذار و جمله‌ی توضیحی مثل «مقایسه اصل و فیک» را به‌عنوان `product_name` ننویس.\n"
     '   - از هشتگ‌ها هم برند، نامِ محصول و رنگ را استخراج کن (`#اسنسصورتی` ⇒ `colors=["صورتی"]`).\n'
     "   - رنگ/تناژ (`colors` مثل «صورتی»، «نود» حتی در «میکاپ صورتی»)، شماره‌ی شید (`shades` مثل «شماره ۱۲» — نه رنگ نه سایز)، "
@@ -117,11 +124,21 @@ VLM_SYSTEM_PROMPT = (
     '"category": "deo_fragrance", "brand": "بث اند بادی", "price_toman": null, '
     '"old_price_toman": null, "colors": [], "shades": [], "sizes": [], '
     '"volume_ml": null, "spf": null, "stock_state": "unknown", "products": [], "confidence": 0.85}\n'
+    "ورودی: «با Rose Done فارماسی یک میکاپ صورتی بساز ✨ #آرایش #فارماسی»\n"
+    'خروجی: {"extraction_successful": true, "title_fa": "Rose Done فارماسی", "product_name": "محصول Rose Done", '
+    '"category": "makeup", "brand": "فارماسی", "price_toman": null, '
+    '"old_price_toman": null, "colors": ["صورتی"], "shades": [], "sizes": [], '
+    '"volume_ml": null, "spf": null, "stock_state": "unknown", "products": [], "confidence": 0.85}\n'
     "ورودی: «مامانمم خریدههه😂 همه محصولات موجود ✅ #لوازم_آرایشی #آرایش»\n"
     'خروجی: {"extraction_successful": true, "title_fa": "محصولات آرایشی موجود", "product_name": null, '
     '"category": "makeup", "brand": null, "price_toman": null, '
     '"old_price_toman": null, "colors": [], "shades": [], "sizes": [], '
     '"volume_ml": null, "spf": null, "stock_state": "in_stock", "products": [], "confidence": 0.75}\n'
+    "ورودی: «برای داشتن یک روتین پوستی خوب مراقبت مداوم لازمه ✨ مشاوره دایرکت #روتین_پوستی #مراقبت_پوست #ضد_جوش»\n"
+    'خروجی: {"extraction_successful": true, "title_fa": "محصولات روتین پوستی", "product_name": null, '
+    '"category": "skincare", "brand": null, "price_toman": null, '
+    '"old_price_toman": null, "colors": [], "shades": [], "sizes": [], '
+    '"volume_ml": null, "spf": null, "stock_state": "unknown", "products": [], "confidence": 0.75}\n'
     "ورودی: «سه محصول: ۱.دور چشم نامبوزین ۲.اسنس نامبوزین ۳.ابرسان فارم استی | برای قیمت کلمه پوست کامنت کن»\n"
     'خروجی: {"extraction_successful": true, "title_fa": "سه محصول نجات‌بخش", "product_name": "دور چشم", '
     '"category": "skincare", "brand": "نامبوزین", '
@@ -129,8 +146,12 @@ VLM_SYSTEM_PROMPT = (
     '{"name_fa": "اسنس", "category": "skincare", "brand": "نامبوزین"}, '
     '{"name_fa": "ابرسان", "category": "skincare", "brand": "فارم استی"}], '
     '"price_toman": null, "stock_state": "on_request", "confidence": 0.85}\n'
+    "ورودی: «این فقط بخشی از محصولات پیجمه👌 دنبال محصولات آرایشی و پوستی اصل هستی سر بزن #آرایشی #بهداشتی»\n"
+    'خروجی: {"extraction_successful": false, "failure_reason": "معرفی کلی پیج مختلط با تساوی آرایشی و پوستی", '
+    '"category": null, "product_name": null, "brand": null, "price_toman": null, '
+    '"colors": [], "shades": [], "sizes": [], "products": [], "confidence": 0.0}\n'
     "ورودی: «پیازای خیانت‌کار همیشه باید بد بو بمونن 😂🧅 #ترند #آرایش»\n"
-    'خروجی: {"extraction_successful": false, "failure_reason": "پست طنز/چالش بدون محصول یا دسته‌ی فروش", '
+    'خروجی: {"extraction_successful": false, "failure_reason": "پست طنز بدون محصول یا دسته‌ی فروش", '
     '"category": null, "product_name": null, "brand": null, "price_toman": null, '
     '"colors": [], "shades": [], "sizes": [], "products": [], "confidence": 0.0}\n\n'
     "## قراردادِ خروجی (Output Contract)\n"
@@ -183,7 +204,6 @@ CATEGORY_MAP: dict[str, str] = {
     "برنزه": "makeup",
     "پرایمر": "makeup",
     "بالم لب": "makeup",
-    "میکاپ": "makeup",
     "لیپ گلاس": "makeup",
     "لیپگلاس": "makeup",
     "bb کرم": "makeup",  # کرم‌های پوشش‌دهنده = آرایشی (نه skincare)
@@ -273,7 +293,7 @@ class ExtractionPipeline:
         regex_price = signals.prices.current
         old_price = signals.prices.old
 
-        # ── ترکیب سیگنال‌ها: regex پرقدرت ← VLM برای ضعیف‌ها ─────────────────
+        # ── ترکیب سیگنال‌ها: regex پرقدرت ← VLM معنایی (+ تصویر در دسترس) ─────
         vlm_raw: SafeProductExtraction | None = None
         vlm: SafeProductExtraction | None = None
         vlm_calls = 0
@@ -282,16 +302,21 @@ class ExtractionPipeline:
         )
         if need_vlm:
             vlm_calls = 1
-            vlm_raw = await self._vlm_extract_raw(caption_text)
+            image_paths = await self._local_image_paths(item.id)
+            vlm_raw = await self._vlm_extract_raw(caption_text, image_paths=image_paths)
             if vlm_raw is not None and vlm_raw.extraction_successful:
                 vlm = vlm_raw
 
-        # امتناعِ آگاهانه‌ی VLM: اگر هیچ برند/محصول یا نشانه‌ی فروش صریحی نباشد ← پست بدون محصول (C1)
+        offline_cat = _guess_category(
+            caption_text + " " + " ".join(signals.hashtags)
+        ) or find_product_category(caption_text)
+
+        # امتناعِ آگاهانه‌ی VLM (قانون هم‌سنگ با hybrid_fuse_dict)
         if (
             vlm_raw is not None
             and not vlm_raw.extraction_successful
             and regex_price is None
-            and not has_explicit_shop_cue(caption_text)
+            and not should_override_vlm_abstention(caption_text, offline_cat)
         ):
             return {
                 "processed": 1,
@@ -306,10 +331,18 @@ class ExtractionPipeline:
         price_toman, method, confidence = _merge_price(regex_price, vlm, signals.prices.on_request)
 
         title = (vlm.title_fa if vlm and vlm.title_fa else None) or _derive_title(caption_text)
-        category = (
-            (vlm.category if vlm and vlm.category else None)
-            or _guess_category(caption_text + " " + " ".join(signals.hashtags))
-            or find_product_category(caption_text)
+        category = choose_hybrid_category(
+            caption_text,
+            vlm.category if vlm else None,
+            offline_cat,
+            vlm_has_specific=bool(
+                vlm
+                and (
+                    vlm.products
+                    or vlm.brand
+                    or find_product_name(vlm.product_name or "") is not None
+                )
+            ),
         )
         brand = canonical_brand(vlm.brand if vlm else None) or find_brand(caption_text)
         colors = list(dict.fromkeys([*(vlm.colors if vlm else []), *signals.colors]))
@@ -329,7 +362,7 @@ class ExtractionPipeline:
 
         # ── فهرستِ محصولات: چندمحصوله‌ی VLM ← یا چندمحصوله‌ی آفلاین ← یا تک‌محصوله ──
         single_name = prefer_product_name(
-            vlm.product_name if vlm else None, find_product_name(caption_text)
+            vlm.product_name if vlm else None, find_product_name(caption_text), caption_text
         )
         multi_offline = ExtractionPipeline.extract_multi_fa(caption_text)
         if vlm and vlm.products:
@@ -519,23 +552,71 @@ class ExtractionPipeline:
             )
         )
 
-    # ── استخراج ساخت‌یافته‌ی VLM با retry هوشمند ───────────────────────────────
-    async def _vlm_extract_raw(self, caption_text: str) -> SafeProductExtraction | None:
-        """پاسخ کامل VLM (شامل امتناع آگاهانه) — خطای فنی یا شکست پارس → None."""
+    # ── استخراج ساخت‌یافته‌ی VLM با retry هوشمند (+ چندوجهی تصویر در دسترس) ───
+    async def _local_image_paths(self, raw_item_id: int) -> list[Path]:
+        rows = (
+            (
+                await self.session.execute(
+                    select(MediaFile).where(MediaFile.raw_item_id == raw_item_id)
+                )
+            )
+            .scalars()
+            .all()
+        )
+        out: list[Path] = []
+        for mf in rows:
+            p = Path(mf.local_path)
+            if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"} and p.is_file():
+                try:
+                    if p.stat().st_size <= 4 * 1024 * 1024:
+                        out.append(p)
+                except OSError:
+                    continue
+            if len(out) >= 2:
+                break
+        return out
+
+    async def _vlm_extract_raw(
+        self, caption_text: str, image_paths: list[Path] | None = None
+    ) -> SafeProductExtraction | None:
+        """پاسخ کامل VLM (متن + تصویر محلی در دسترس) — خطای فنی یا شکست پارس → None."""
         assert self.ai is not None
         schema = SafeProductExtraction.model_json_schema()
         user_prompt = (
             f"اسکیمای JSON:\n{json.dumps(schema, ensure_ascii=False, separators=(',', ':'))}\n\n"
             f"کپشن:\n{caption_text or '(بدون کپشن)'}"
         )
+        user_content: str | list[dict[str, Any]] = user_prompt
+        if image_paths:
+            parts: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
+            for img in image_paths:
+                ext = img.suffix.lstrip(".").lower() or "jpg"
+                mime = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "webp": "webp"}.get(
+                    ext, "jpeg"
+                )
+                b64 = base64.b64encode(img.read_bytes()).decode()
+                parts.append(
+                    {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{b64}"}}
+                )
+            user_content = parts
+
         messages: list[dict[str, Any]] = [
             {"role": "system", "content": VLM_SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
+            {"role": "user", "content": user_content},
         ]
+        used_vision = bool(image_paths)
         for _attempt in range(3):
             try:
                 text = await self.ai.chat(messages, temperature=0)
             except Exception:
+                # اگر مدل vision نباشد و تصویر رد شود، بلافاصله روی متن خالص fallback می‌کنیم
+                if used_vision:
+                    used_vision = False
+                    messages = [
+                        {"role": "system", "content": VLM_SYSTEM_PROMPT},
+                        {"role": "user", "content": user_prompt},
+                    ]
+                    continue
                 return None
             try:
                 return SafeProductExtraction.model_validate(_defensive_parse(text))
@@ -548,9 +629,11 @@ class ExtractionPipeline:
                 )
         return None
 
-    async def _vlm_extract_safe(self, caption_text: str) -> SafeProductExtraction | None:
+    async def _vlm_extract_safe(
+        self, caption_text: str, image_paths: list[Path] | None = None
+    ) -> SafeProductExtraction | None:
         """مغزِ هوشمند (Qwen محلی/BoxAPI) — با مسیرِ فرار: هر شکست یا امتناع → None ← regex ادامه می‌دهد."""
-        res = await self._vlm_extract_raw(caption_text)
+        res = await self._vlm_extract_raw(caption_text, image_paths=image_paths)
         return res if (res is not None and res.extraction_successful) else None
 
 
@@ -569,17 +652,108 @@ def has_explicit_shop_cue(caption: str) -> bool:
     return bool(_SHOP_ORDER_CUE_RE.search(folded))
 
 
-def prefer_product_name(vlm_name: str | None, offline_name: str | None) -> str | None:
-    """اگر VLM به‌جای نام محصول یک توضیح کلی («مقایسه اصل و فیک...») نوشت ولی آفلاین نام دقیق داشت، آفلاین می‌برد."""
+def count_category_signals(text: str) -> tuple[Counter[str], int]:
+    """شمارش غیرهمپوشانِ سیگنال‌های دسته و تعداد اصطلاحات مشخصِ کالا (ضدِ دوبارشماریِ «آرایش/آرایشی»)."""
+    folded = _fold_fa((text or "").replace("\u200c", " "))
+    all_terms = sorted(
+        [(k, v, True) for k, v in CATEGORY_MAP.items()]
+        + [(k, v, False) for k, v in CATEGORY_FAMILY.items()],
+        key=lambda x: -len(x[0]),
+    )
+    occupied = [False] * len(folded)
+    counts: Counter[str] = Counter()
+    spec_n = 0
+    for term, cat, is_spec in all_terms:
+        ft = _fold_fa(term)
+        for m in re.finditer(re.escape(ft), folded):
+            start, end = m.span()
+            if any(occupied[start:end]):
+                continue
+            if len(ft) <= 3:
+                before = folded[start - 1] if start > 0 else " "
+                after = folded[end:] if end < len(folded) else ""
+                if _LETTER_RE.match(before):
+                    continue
+                if (
+                    after
+                    and _LETTER_RE.match(after)
+                    and not (after[0] == "ه" and (len(after) == 1 or after[1] in "ای "))
+                    and not (
+                        after[0] == "ی" and (len(after) == 1 or not _LETTER_RE.match(after[1]))
+                    )
+                ):
+                    continue
+            for idx in range(start, end):
+                occupied[idx] = True
+            counts[cat] += 1
+            if is_spec:
+                spec_n += 1
+    return counts, spec_n
+
+
+def body_is_balanced_mixed(caption: str) -> bool:
+    """آیا بدنه‌ی اصلی (پیش از هشتگ) هر دو دسته‌ی آرایشی و پوستی را هم‌وزن و بی‌نام‌محصول دارد؟"""
+    body = re.sub(r"#\S+", " ", caption or "")
+    bc, bspec = count_category_signals(body)
+    return (
+        bspec == 0
+        and not find_brand(body)
+        and bc.get("makeup", 0) > 0
+        and bc.get("skincare", 0) > 0
+        and bc.get("makeup", 0) == bc.get("skincare", 0)
+    )
+
+
+def should_override_vlm_abstention(caption: str, offline_category: str | None) -> bool:
+    """چه زمانی امتناع VLM را به‌نفع کاتالوگ/اکثریت سیگنال کنار می‌گذاریم؟
+
+    - اگر بدنه معرفی متعادلِ پیجِ مختلط است (بدون برند و بدون نام کالا) → امتناع VLM محترم است.
+    - اگر دسته‌ی آفلاین دارد و (نشانه‌ی صریح فروش/محصول/برند یا ≥۱ اصطلاح خاص یا ≥۲ سیگنالِ دسته) موجود است → نجات بده.
+    - اگر فقط ۱ هشتگ پراکنده روی پست طنز/حمایتی آمده → امتناع VLM محترم است.
+    """
+    if not offline_category:
+        return False
+    counts, spec_n = count_category_signals(caption)
+    if body_is_balanced_mixed(caption) and spec_n == 0 and not find_brand(caption):
+        return False
+    return has_explicit_shop_cue(caption) or spec_n >= 1 or counts.get(offline_category, 0) >= 2
+
+
+def choose_hybrid_category(
+    caption: str,
+    vlm_category: str | None,
+    offline_category: str | None,
+    *,
+    vlm_has_specific: bool,
+) -> str | None:
+    """داوری نهایی دسته در پایپ‌لاین ترکیبی: VLM معنایی vs اکثریت غیرهمپوشان روی هشتگ‌ها."""
+    if not vlm_category:
+        return offline_category
+    if offline_category and vlm_category != offline_category and not vlm_has_specific:
+        counts, _ = count_category_signals(caption)
+        if counts.get(offline_category, 0) > counts.get(vlm_category, 0):
+            return offline_category
+    return vlm_category
+
+
+def prefer_product_name(
+    vlm_name: str | None, offline_name: str | None, caption: str = ""
+) -> str | None:
+    """نگهداشتِ نام کاتالوگی و سریِ لاتینِ محصول (ضد حذفِ نام‌هایی مثل Rose Done یا جایگزینی کلی)."""
+    series = find_latin_series(caption)
     if not vlm_name:
-        return offline_name
+        return offline_name or (f"محصول {series}" if series else None)
     if (
         offline_name
         and find_product_name(vlm_name) is None
         and not re.search(r"[A-Za-z0-9]{2,}", vlm_name)
     ):
-        return offline_name
-    return vlm_name
+        base = offline_name
+    else:
+        base = vlm_name
+    if series and series.lower() not in base.lower():
+        return f"{base} {series}"
+    return base
 
 
 def hybrid_fuse_dict(
@@ -589,17 +763,17 @@ def hybrid_fuse_dict(
 ) -> dict[str, Any]:
     """ترکیبِ تولیدیِ Regex قطعی + VLM معنایی (منبع واحدِ truth بین pipeline و بنچ‌مارک).
 
-    - شکستِ فنیِ VLM → برگشت کامل به آفلاین (فاصله‌ی ایمنی).
-    - امتناعِ آگاهانه‌ی VLM: اگر نشانه‌ی صریح فروشگاهی (برند/کالا/موجودی/سفارش)
-      و دسته‌ی غالبِ آفلاین نباشد، به امتناع VLM اعتماد می‌شود (حذفِ منفی‌های کاذب)؛
-      در غیر این صورت آفلاین جایگزین می‌شود.
-    - موفقیتِ VLM: قیمتِ پرتوانِ regex در اولویت + دسته/چندمحصوله‌ی VLM + اجتماعِ ویژگی‌ها.
+    - شکستِ فنیِ VLM → برگشت کامل به آفلاین (ایزولاسیون خرابی).
+    - امتناعِ آگاهانه‌ی VLM: با `should_override_vlm_abstention` سنجیده می‌شود
+      (پست‌های طنز/حمایتی/معرفیِ متعادل پیج پاک می‌شوند، ولی ریلز/پست واقعی با ≥۲ سیگنالِ
+      غالب یا نشانه‌ی فروش نجات پیدا می‌کند).
+    - موفقیتِ VLM: قیمتِ پرتوانِ regex + داوری اکثریتِ دسته برای مواردِ غیرخاص + حفظ نام سری لاتین.
     """
     if vlm_pred is None or vlm_pred.get("failed") or vlm_pred.get("category") == "__VLM_FAILED__":
         return offline_pred
 
     if vlm_pred.get("abstained"):
-        if has_explicit_shop_cue(caption) and offline_pred.get("category") is not None:
+        if should_override_vlm_abstention(caption, offline_pred.get("category")):
             return offline_pred
         return vlm_pred
 
@@ -615,13 +789,24 @@ def hybrid_fuse_dict(
             else (vlm_pred.get("stock_state") or offline_pred.get("stock_state") or "unknown")
         )
     )
+    vlm_has_spec = bool(
+        vlm_pred.get("products")
+        or vlm_pred.get("brand")
+        or find_product_name(vlm_pred.get("product_name") or "") is not None
+    )
+    category = choose_hybrid_category(
+        caption,
+        vlm_pred.get("category"),
+        offline_pred.get("category"),
+        vlm_has_specific=vlm_has_spec,
+    )
     return {
         "id": vlm_pred.get("id") or offline_pred.get("id"),
         "price_toman": price,
         "old_price_toman": offline_pred.get("old_price_toman") or vlm_pred.get("old_price_toman"),
-        "category": vlm_pred.get("category") or offline_pred.get("category"),
+        "category": category,
         "product_name": prefer_product_name(
-            vlm_pred.get("product_name"), offline_pred.get("product_name")
+            vlm_pred.get("product_name"), offline_pred.get("product_name"), caption
         ),
         "brand": canonical_brand(vlm_pred.get("brand"))
         or vlm_pred.get("brand")

@@ -36,59 +36,41 @@ def _extract_username(item: dict[str, Any]) -> str:
     return str(user.get("username") or item.get("username") or "").strip().lower()
 
 
-async def discover_holdout_batch2(
-    provider: BoxApiDataProvider,
+def build_holdout_from_raw(
+    raw_items: list[dict[str, Any]],
     *,
     gold_path: Path,
     out_candidates_path: Path,
     out_sheet_path: Path,
-    hashtags: tuple[str, ...] = _DEFAULT_HASHTAGS,
     target: int = 25,
     max_per_seller: int = 7,
     exclude_usernames: set[str] | None = None,
+    calls_used: int = 0,
 ) -> dict[str, Any]:
-    """جمع‌آوریِ کورِ نمونه‌های `split=test` برای بچ ۲ از فروشندگان دیده‌نشده."""
-    status = await provider.account_status()
-    left = status.get("request_left")
-    if left is not None and int(left) <= 0:
-        return {
-            "ok": False,
-            "error": (
-                f"سهمیه‌ی Data API تمام شده است (username={status.get('username')}, "
-                f"used={status.get('request_used')}/{status.get('request_limit')}, "
-                f"left={left}, expire={status.get('plan_expiration')})"
-            ),
-            "quota": status,
-        }
-
+    """انتخاب نمونه‌های کورِ بچ ۲ (`split=test`) با تنوع فروشنده از هر منبع (Data API یا فایل)."""
     existing = json.loads(gold_path.read_text(encoding="utf-8")) if gold_path.exists() else []
     seen_captions = {str(s.get("caption") or "").strip() for s in existing}
     excluded = {u.lower() for u in (exclude_usernames or {"farmashop_aras"})}
     next_idx = len(existing) + 1
 
     raw_pool: list[dict[str, Any]] = []
-    calls_used = 0
-    for tag in hashtags:
-        items = await provider.hashtag_media(tag)
-        calls_used += 1
-        for it in items:
-            cap = _extract_caption(it)
-            uname = _extract_username(it)
-            if not cap or len(cap) < 20 or uname in excluded or not uname:
-                continue
-            if cap in seen_captions:
-                continue
-            raw_pool.append(
-                {
-                    "username": uname,
-                    "ig_media_id": str(it.get("pk") or it.get("id") or ""),
-                    "caption": cap,
-                    "has_price_hint": bool(_PRICE_HINT_RE.search(cap)),
-                    "tag": tag,
-                }
-            )
+    for it in raw_items:
+        cap = _extract_caption(it)
+        uname = _extract_username(it)
+        if not cap or len(cap) < 20 or uname in excluded or not uname:
+            continue
+        if cap in seen_captions:
+            continue
+        raw_pool.append(
+            {
+                "username": uname,
+                "ig_media_id": str(it.get("pk") or it.get("id") or it.get("ig_media_id") or ""),
+                "caption": cap,
+                "has_price_hint": bool(_PRICE_HINT_RE.search(cap)),
+                "tag": str(it.get("_tag") or it.get("tag") or "imported"),
+            }
+        )
 
-    # اولویت با کپشن‌های دارای نشانه‌ی قیمت/استعلام؛ تنوع فروشنده (حداکثر max_per_seller از هر پیج)
     raw_pool.sort(key=lambda r: (not r["has_price_hint"], r["username"]))
 
     selected: list[dict[str, Any]] = []
@@ -143,3 +125,48 @@ async def discover_holdout_batch2(
         "candidates_path": str(out_candidates_path),
         "sheet_path": str(out_sheet_path),
     }
+
+
+async def discover_holdout_batch2(
+    provider: BoxApiDataProvider,
+    *,
+    gold_path: Path,
+    out_candidates_path: Path,
+    out_sheet_path: Path,
+    hashtags: tuple[str, ...] = _DEFAULT_HASHTAGS,
+    target: int = 25,
+    max_per_seller: int = 7,
+    exclude_usernames: set[str] | None = None,
+) -> dict[str, Any]:
+    """جمع‌آوریِ کورِ نمونه‌های `split=test` برای بچ ۲ از فروشندگان دیده‌نشده."""
+    status = await provider.account_status()
+    left = status.get("request_left")
+    if left is not None and int(left) <= 0:
+        return {
+            "ok": False,
+            "error": (
+                f"سهمیه‌ی Data API تمام شده است (username={status.get('username')}, "
+                f"used={status.get('request_used')}/{status.get('request_limit')}, "
+                f"left={left}, expire={status.get('plan_expiration')})"
+            ),
+            "quota": status,
+        }
+
+    raw_items: list[dict[str, Any]] = []
+    calls_used = 0
+    for tag in hashtags:
+        items = await provider.hashtag_media(tag)
+        calls_used += 1
+        for it in items:
+            raw_items.append({**it, "_tag": tag})
+
+    return build_holdout_from_raw(
+        raw_items,
+        gold_path=gold_path,
+        out_candidates_path=out_candidates_path,
+        out_sheet_path=out_sheet_path,
+        target=target,
+        max_per_seller=max_per_seller,
+        exclude_usernames=exclude_usernames,
+        calls_used=calls_used,
+    )

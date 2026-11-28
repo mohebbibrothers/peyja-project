@@ -107,13 +107,15 @@ async def boxapi_webhook(
         if existing:
             return {"status": "duplicate"}
 
-        # طبقه‌بندی + ثبت پیام‌های ورودی (حلقه‌ی رسمی)
+        # طبقه‌بندی + ثبت پیام‌های ورودی + یادگیری از echo فروشنده (حلقه‌ی رسمی)
         # قرارداد BoxAPI: پیام‌ها داخل آرایه‌ی data.messaging[] — چند رویداد در یک payload
-        from peyja.loop.dispatcher import classify_events, record_inbound
+        from peyja.loop.dispatcher import classify_events, learn_from_seller_echo, record_inbound
 
         classified_list = classify_events(payload)
         for classified in classified_list:
             await record_inbound(session, classified)
+            if classified.kind == "echo_message":
+                await learn_from_seller_echo(session, classified)
 
         processed = any(
             c.kind in ("action_result", "inbound_message", "echo_message", "comment")

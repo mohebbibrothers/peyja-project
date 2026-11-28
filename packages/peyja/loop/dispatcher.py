@@ -7,15 +7,17 @@ echo (پیام خودمان) ≠ پیام ورودی: echo سیگنال «باز
 from __future__ import annotations
 
 import datetime as dt
+import logging
 from dataclasses import dataclass
 from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from peyja.models import Conversation, Message, utcnow
+from peyja.models import Conversation, Evidence, Message, Offer, Product, Variant, utcnow
 
 EventKind = Literal["inbound_message", "echo_message", "comment", "action_result", "unknown"]
+_log = logging.getLogger("peyja.dispatcher")
 
 
 @dataclass
@@ -99,7 +101,20 @@ def classify_events(payload: dict[str, Any]) -> list[ClassifiedEvent]:
         return [_classify_item(account_id, item, payload, force_echo=force_echo) for item in items]
 
     if event_type in ("comments", "mentions"):
-        return [ClassifiedEvent("comment", account_id, raw=payload)]
+        sender = data.get("from") or data.get("sender") or {}
+        ig_user = str(sender.get("id") or sender.get("username") or "") or None
+        cid = data.get("id") or data.get("comment_id")
+        return [
+            ClassifiedEvent(
+                kind="comment",
+                account_id=account_id,
+                ig_user_id=ig_user,
+                text=data.get("text"),
+                mid=str(cid) if cid is not None else None,
+                at=_parse_ts(data.get("timestamp")),
+                raw=payload,
+            )
+        ]
 
     return [ClassifiedEvent("unknown", account_id, raw=payload)]
 
@@ -151,3 +166,103 @@ async def record_inbound(session: AsyncSession, ev: ClassifiedEvent) -> None:
             sent_at=at,
         )
     )
+
+
+async def learn_from_seller_echo(
+    session: AsyncSession, ev: ClassifiedEvent
+) -> dict[str, Any] | None:
+    """سیگنال طلایی echo: استخراج قیمت تأییدشده از پاسخ فروشنده و ثبت Evidence (`seller_echo`).
+
+    قانون صفر: اگر فروشنده در دایرکت قیمت بدهد و محصولِ مرجع (از متنِ echo یا آخرین پیام مشتری)
+    در کاتالوگ پیدا شود، پیشنهادِ قیمت + مدرک `seller_echo` ثبت و محصول تأیید می‌شود.
+    """
+    if ev.kind != "echo_message" or not (ev.text and ev.text.strip()):
+        return None
+
+    from peyja.catalog_query import query_catalog
+    from peyja.extract.caption import analyze_caption
+    from peyja.extract.catalog import find_brand, find_product_name
+
+    parsed = analyze_caption(ev.text)
+    cand = parsed.prices.current
+    if cand is None or cand.confidence < 0.8 or not cand.value_toman:
+        return None
+
+    search_text = ev.text
+    has_product_cue = bool(find_brand(ev.text) or find_product_name(ev.text))
+    if not has_product_cue and ev.account_id and ev.ig_user_id:
+        conv = (
+            await session.execute(
+                select(Conversation).where(
+                    Conversation.account_id == ev.account_id,
+                    Conversation.ig_user_id == ev.ig_user_id,
+                )
+            )
+        ).scalar_one_or_none()
+        if conv is not None:
+            last_in = (
+                (
+                    await session.execute(
+                        select(Message)
+                        .where(Message.conversation_id == conv.id, Message.direction == "in")
+                        .order_by(Message.id.desc())
+                        .limit(1)
+                    )
+                )
+                .scalars()
+                .first()
+            )
+            if last_in and last_in.text:
+                search_text = f"{last_in.text} {ev.text}"
+
+    matches = await query_catalog(session, q=search_text, limit=3)
+    if not matches:
+        return None
+
+    target_id = int(matches[0]["id"])
+    product = (
+        await session.execute(select(Product).where(Product.id == target_id))
+    ).scalar_one_or_none()
+    if product is None:
+        return None
+
+    variant = (
+        (await session.execute(select(Variant).where(Variant.product_id == product.id)))
+        .scalars()
+        .first()
+    )
+    if variant is None:
+        variant = Variant(product_id=product.id, options=None)
+        session.add(variant)
+        await session.flush()
+
+    offer = Offer(
+        variant_id=variant.id,
+        price_minor=int(cand.value_toman),
+        stock_state="in_stock",
+        valid_from=utcnow(),
+        ttl_hours=24,
+        stale=False,
+    )
+    session.add(offer)
+    await session.flush()
+
+    product.status = "confirmed"
+    session.add(
+        Evidence(
+            offer_id=offer.id,
+            product_id=product.id,
+            source_type="seller_echo",
+            source_id=ev.mid,
+            method="echo_dm",
+            confidence=0.95,
+            verified_by=f"seller:{ev.account_id or 'echo'}",
+            verified_at=utcnow(),
+        )
+    )
+    _log.info(
+        "💎 قیمت از echo فروشنده آموخته شد: product_id=%s ← %s تومان",
+        product.id,
+        cand.value_toman,
+    )
+    return {"product_id": product.id, "price_toman": int(cand.value_toman)}

@@ -52,7 +52,6 @@ BRANDS: list[str] = [
     "اسنس",
     "کیکو",
     "شیگلم",
-    "میکاپ",
     "لیلیو",
     "لیلی‌یو",
     "آنوا",
@@ -117,6 +116,58 @@ def canonical_brand(brand: str | None) -> str | None:
         return None
     key = fold(cleaned).strip()
     return BRAND_ALIASES.get(key, cleaned)
+
+
+_GENERIC_LATIN_TOKENS = {
+    "spf",
+    "pov",
+    "bb",
+    "cc",
+    "dd",
+    "uv",
+    "uva",
+    "uvb",
+    "ph",
+    "vip",
+    "dm",
+    "ok",
+    "ml",
+    "mil",
+    "mg",
+    "gr",
+    "kg",
+    "off",
+    "sale",
+    "new",
+    "pro",
+    "max",
+    "mini",
+    "plus",
+    "original",
+    "orginal",
+}
+
+
+def find_latin_series(text: str | None) -> str | None:
+    """تشخیص نام سری/مدل لاتینِ محصول (مثل Rose Done یا Double Wear) — ضد حذف در VLM.
+
+    هشتگ‌ها/منشن‌ها/لینک‌ها، برندهای شناخته‌شده و اختصارهای عمومی (SPF50, POV, BB) کنار گذاشته می‌شوند.
+    """
+    if not text:
+        return None
+    cleaned = re.sub(r"https?://\S+|[@#]\S+", " ", text)
+    pattern = re.compile(
+        r"\b([A-Za-z][A-Za-z0-9'\-]{1,20}(?:\s+[A-Za-z][A-Za-z0-9'\-]{1,20}){1,2})\b"
+    )
+    for m in pattern.finditer(cleaned):
+        phrase = m.group(1).strip()
+        words = phrase.lower().split()
+        if all(w in _GENERIC_LATIN_TOKENS or re.match(r"^spf\d+$", w) for w in words):
+            continue
+        if canonical_brand(phrase) != phrase:
+            continue
+        return phrase
+    return None
 
 
 # ── نام‌های محصول (برای نام/کاتالوگ و تکه‌بندیِ پست‌های چندمحصوله) ───────────────

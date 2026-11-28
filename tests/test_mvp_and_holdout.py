@@ -238,3 +238,258 @@ def test_crawl_holdout_checks_quota_and_enforces_diversity(tmp_path: Path) -> No
     assert all(r["price_toman"] is None and r["category"] is None for r in rows)  # برچسب‌زنی کور!
     assert "farmashop_aras" not in {r["source_username"] for r in rows}
     assert sheet_path.exists()
+
+
+def test_seller_review_echo_learning_and_relevance(tmp_path: Path, monkeypatch: Any) -> None:
+    """اثبات کامل قانون صفر در MVP: تأیید فروشنده، رتبه‌بندی پرس‌وجو و یادگیری قیمت از echo DM."""
+    import peyja.config as cfg
+    import peyja.db as dbmod
+    from peyja.extract.pipeline import ExtractionPipeline
+    from peyja.loop.dispatcher import (
+        ClassifiedEvent,
+        classify_events,
+        learn_from_seller_echo,
+        record_inbound,
+    )
+    from peyja.models import Evidence, Page, RawItem
+
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "echo.db"))
+    cfg.get_settings.cache_clear()
+    dbmod._engine = None
+    dbmod._session_factory = None
+    try:
+
+        async def _setup() -> dict[str, int]:
+            await dbmod.ensure_schema()
+            factory = dbmod.get_session_factory()
+            async with factory() as session:
+                page = Page(username="demo_shop", ig_user_id="999", source="data")
+                session.add(page)
+                await session.flush()
+
+                session.add_all(
+                    [
+                        RawItem(
+                            page_id=page.id,
+                            kind="media",
+                            ig_id="p1",
+                            raw={"caption": "ریمل اسنس موجود شد"},  # candidate بدون قیمت
+                        ),
+                        RawItem(
+                            page_id=page.id,
+                            kind="media",
+                            ig_id="p2",
+                            raw={
+                                "caption": "کرم آبرسان نیتروژنا ۹۵۰ هزار تومان"
+                            },  # جدیدتر ولی غیرمرتبط
+                        ),
+                    ]
+                )
+                await session.flush()
+                await ExtractionPipeline(session, ai=None).run_for_page(page.id)
+
+                # شبیه‌سازی گفتگو: خریدار می‌پرسد ← فروشنده در echo قیمت می‌دهد
+                await record_inbound(
+                    session,
+                    ClassifiedEvent(
+                        kind="inbound_message",
+                        account_id="acc-1",
+                        ig_user_id="buyer-9",
+                        text="سلام ریمل اسنس موجود دارین؟",
+                        mid="in-1",
+                    ),
+                )
+                echo_ev = ClassifiedEvent(
+                    kind="echo_message",
+                    account_id="acc-1",
+                    ig_user_id="buyer-9",
+                    text="بله ۵۲۰ هزار تومان",
+                    mid="out-1",
+                )
+                await record_inbound(session, echo_ev)
+                learned = await learn_from_seller_echo(session, echo_ev)
+                await session.commit()
+                assert learned is not None and learned["price_toman"] == 520_000
+                return learned
+
+        learned = asyncio.run(_setup())
+        client = TestClient(app)
+
+        # ریمل اسنس باید با قیمت یادگرفته‌شده و وضعیت تأییدشده اول باشد
+        ask = client.get("/api/catalog/ask", params={"q": "قیمت ریمل اسنس چنده؟"}).json()
+        assert ask["matched"] is True
+        assert "520,000" in ask["reply_text"]
+        assert ask["items"][0]["id"] == learned["product_id"]
+        assert ask["items"][0]["verified"] is True
+
+        # تأیید/تغییر قیمت از طریق کنسول فروشنده (POST /api/catalog/{id}/review)
+        pid = learned["product_id"]
+        rev = client.post(
+            f"/api/catalog/{pid}/review",
+            json={"action": "confirm", "price_toman": 540_000, "reviewer": "owner"},
+        )
+        assert rev.status_code == 200
+        assert rev.json()["item"]["price_toman"] == 540_000
+        assert rev.json()["item"]["verified"] is True
+
+        missing = client.post("/api/catalog/999999/review", json={"action": "reject"})
+        assert missing.status_code == 404
+
+        async def _check_evidence() -> list[Evidence]:
+            factory = dbmod.get_session_factory()
+            from sqlalchemy import select
+
+            async with factory() as session:
+                return (
+                    (await session.execute(select(Evidence).where(Evidence.product_id == pid)))
+                    .scalars()
+                    .all()
+                )
+
+        evs = asyncio.run(_check_evidence())
+        assert any(e.method == "echo_dm" and e.source_type == "seller_echo" for e in evs)
+        assert any(e.method == "human_review" and e.verified_by == "owner" for e in evs)
+
+        # پارس کامل رویداد کامنت
+        cev = classify_events(
+            {
+                "event_type": "comments",
+                "account_id": "acc-1",
+                "data": {"id": "c-42", "text": "قیمت؟", "from": {"id": "u-7", "username": "ali"}},
+            }
+        )[0]
+        assert cev.kind == "comment" and cev.ig_user_id == "u-7" and cev.mid == "c-42"
+    finally:
+        cfg.get_settings.cache_clear()
+        dbmod._engine = None
+        dbmod._session_factory = None
+
+
+def test_multimodal_pipeline_sends_image_and_falls_back_gracefully(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """پشتیبانی چندوجهی تصویرِ آرشیوشده در ExtractionPipeline + fallback خودکار به متن خالص."""
+    import peyja.config as cfg
+    import peyja.db as dbmod
+    from peyja.extract.pipeline import ExtractionPipeline
+    from peyja.models import MediaFile, Page, RawItem
+
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "mm.db"))
+    cfg.get_settings.cache_clear()
+    dbmod._engine = None
+    dbmod._session_factory = None
+
+    img_path = tmp_path / "sample.jpg"
+    img_path.write_bytes(b"\xff\xd8\xff\xe0test-jpeg-payload")
+
+    class _MockVisionFallbackAi:
+        def __init__(self) -> None:
+            self.calls: list[Any] = []
+
+        async def chat(self, messages: list[dict[str, Any]], **kwargs: Any) -> str:
+            content = messages[-1]["content"]
+            self.calls.append(content)
+            # تماس اول شامل image_url است ← شبیه‌سازی رد مدل متنی تا fallback آزموده شود
+            if isinstance(content, list):
+                raise RuntimeError("vision not supported on mock")
+            return json.dumps(
+                {
+                    "extraction_successful": True,
+                    "title_fa": "سرم ویتامین سی",
+                    "product_name": "سرم",
+                    "category": "skincare",
+                    "brand": "گارنیر",
+                    "price_toman": 490000,
+                    "stock_state": "in_stock",
+                    "confidence": 0.9,
+                },
+                ensure_ascii=False,
+            )
+
+        async def extract_from_image(self, image_path: Any, prompt: str, **kwargs: Any) -> str:
+            return "{}"
+
+    try:
+
+        async def _run() -> tuple[dict[str, int], list[Any]]:
+            await dbmod.ensure_schema()
+            factory = dbmod.get_session_factory()
+            ai = _MockVisionFallbackAi()
+            async with factory() as session:
+                page = Page(username="mm_shop", ig_user_id="1", source="data")
+                session.add(page)
+                await session.flush()
+                raw = RawItem(
+                    page_id=page.id,
+                    kind="media",
+                    ig_id="mm-1",
+                    raw={"caption": "همه محصولات موجود در پیج ✅"},
+                )
+                session.add(raw)
+                await session.flush()
+                session.add(
+                    MediaFile(
+                        raw_item_id=raw.id,
+                        url_original="https://example.com/1.jpg",
+                        sha256="abc",
+                        local_path=str(img_path),
+                    )
+                )
+                await session.flush()
+                stats = await ExtractionPipeline(session, ai=ai).run_for_page(page.id)
+                return stats, ai.calls
+
+        stats, calls = asyncio.run(_run())
+        assert stats["products"] == 1
+        assert isinstance(calls[0], list) and any(p.get("type") == "image_url" for p in calls[0])
+        assert isinstance(calls[1], str)  # fallback به متن خالص بدون از دست دادن نمونه
+    finally:
+        cfg.get_settings.cache_clear()
+        dbmod._engine = None
+        dbmod._session_factory = None
+
+
+def test_import_holdout_cli_e2e(tmp_path: Path) -> None:
+    """اجرای فرمان import-holdout برای تولید برگه‌ی کور بچ ۲ بدون Data API."""
+    from typer.testing import CliRunner
+
+    from apps.cli.main import app as cli_app
+
+    src = tmp_path / "raw_posts.json"
+    src.write_text(
+        json.dumps(
+            [
+                {"username": "farmashop_aras", "caption": "کپشن تکراری dev با ۵۵۰ هزار تومان"},
+                {
+                    "username": "new_beauty_1",
+                    "caption": "ضدآفتاب ایزیدین فیوژن واتر ۱/۲۵ میلیون تومان",
+                },
+                {"username": "new_beauty_2", "caption": "ریمل اسنس صورتی اصل قیمت ۴۸۰ هزار تومان"},
+            ],
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+    gold = tmp_path / "gold.json"
+    gold.write_text("[]", encoding="utf-8")
+    out_cand = tmp_path / "cand.json"
+    out_sheet = tmp_path / "sheet.html"
+
+    res = CliRunner().invoke(
+        cli_app,
+        [
+            "import-holdout",
+            str(src),
+            "--gold",
+            str(gold),
+            "--out",
+            str(out_cand),
+            "--sheet",
+            str(out_sheet),
+        ],
+    )
+    assert res.exit_code == 0, res.output
+    rows = json.loads(out_cand.read_text(encoding="utf-8"))
+    assert len(rows) == 2
+    assert all(r["split"] == "test" and r["category"] is None for r in rows)
+    assert out_sheet.exists()

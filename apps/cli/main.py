@@ -350,7 +350,8 @@ async def _doctor(vlm_only: bool = False, base_url: str = "", model: str = "") -
                 )
             )
         except Exception as e:
-            checks.append(("سهمیه‌ی Data API (/api/my)", False, str(e)[:90]))
+            err = f"{type(e).__name__}: {e}".strip(": ")
+            checks.append(("سهمیه‌ی Data API (/api/my)", False, err[:90]))
         finally:
             await dp.aclose()
     else:
@@ -706,6 +707,33 @@ def crawl_holdout(
             max_per_seller=max_per_seller,
         )
     )
+
+
+@app.command("import-holdout")
+def import_holdout(
+    source: Path = typer.Argument(..., help="فایل JSON پست‌های خامِ فروشندگان جدید"),
+    gold: Path = typer.Option(Path("evals/gold-100/samples.json"), "--gold"),
+    out: Path = typer.Option(Path("evals/gold-100/batch2-candidates.json"), "--out"),
+    sheet: Path = typer.Option(Path("evals/gold-100/batch2-verification-sheet.html"), "--sheet"),
+    target: int = typer.Option(25, "--target", "-n", help="تعداد هدف برای بچ ۲ (holdout)"),
+    max_per_seller: int = typer.Option(7, "--max-per-seller", help="سقف سهم هر فروشنده (≤۳۰٪)"),
+) -> None:
+    """ساخت برگه‌ی کور بچ ۲ (`split=test`) از JSON دستی/مرورگری بدون نیاز به Data API."""
+    from peyja.ingest.holdout import build_holdout_from_raw
+
+    raw_items = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(raw_items, list):
+        typer.echo("❌ فایل ورودی باید آرایه‌ی JSON باشد")
+        raise typer.Exit(code=1)
+    res = build_holdout_from_raw(
+        raw_items,
+        gold_path=gold,
+        out_candidates_path=out,
+        out_sheet_path=sheet,
+        target=target,
+        max_per_seller=max_per_seller,
+    )
+    typer.echo(json.dumps(res, ensure_ascii=False, indent=2))
 
 
 async def _crawl_holdout(
