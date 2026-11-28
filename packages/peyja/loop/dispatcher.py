@@ -8,16 +8,59 @@ from __future__ import annotations
 
 import datetime as dt
 import logging
+import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from peyja.models import Conversation, Evidence, Message, Offer, Product, Variant, utcnow
+from peyja.models import (
+    Conversation,
+    Evidence,
+    Message,
+    Offer,
+    Page,
+    Product,
+    RawItem,
+    Variant,
+    utcnow,
+)
 
 EventKind = Literal["inbound_message", "echo_message", "comment", "action_result", "unknown"]
 _log = logging.getLogger("peyja.dispatcher")
+
+# نشانه‌های پیام خودِ ربات برای جلوگیری از حلقه‌ی بازخوردِ بی‌نهایت روی echo
+_BOT_REPLY_MARKERS = (
+    "قیمت تأییدشده‌ی ثبت‌شده",
+    "قیمت به‌صورت استعلامی ثبت شده",
+    "در انتظار تأیید نهایی فروشنده",
+)
+_ECHO_NON_PRODUCT_TOKENS = frozenset(
+    {
+        "سلام",
+        "درود",
+        "بله",
+        "خیر",
+        "ممنون",
+        "مرسی",
+        "لطفا",
+        "لطفاً",
+        "عزیزم",
+        "مبارک",
+        "تومان",
+        "تومن",
+        "هزار",
+        "میلیون",
+        "قیمت",
+        "داریم",
+        "دارید",
+        "موجود",
+        "موجوده",
+        "است",
+        "هست",
+    }
+)
 
 
 @dataclass
@@ -173,15 +216,29 @@ async def learn_from_seller_echo(
 ) -> dict[str, Any] | None:
     """سیگنال طلایی echo: استخراج قیمت تأییدشده از پاسخ فروشنده و ثبت Evidence (`seller_echo`).
 
-    قانون صفر: اگر فروشنده در دایرکت قیمت بدهد و محصولِ مرجع (از متنِ echo یا آخرین پیام مشتری)
-    در کاتالوگ پیدا شود، پیشنهادِ قیمت + مدرک `seller_echo` ثبت و محصول تأیید می‌شود.
+    قانون صفر + ضدِ حلقه‌ی بازخورد:
+    - پیام‌های خودکارِ خود ربات (شامل نشانگرهای قالب پاسخ) نادیده گرفته می‌شوند.
+    - برای جلوگیری از ثبتِ تکراری، `source_id=ev.mid` یکتا نگه داشته می‌شود.
+    - جست‌وجو بدون وجود واژه‌ی محصول/برند یا توکنِ غیرعددی انجام نمی‌شود تا «بله ۵۲۰» به کالای بی‌ربط نخورد.
     """
     if ev.kind != "echo_message" or not (ev.text and ev.text.strip()):
         return None
+    if any(marker in ev.text for marker in _BOT_REPLY_MARKERS):
+        return None
+    if ev.mid:
+        dup = (
+            await session.execute(
+                select(Evidence.id).where(
+                    Evidence.source_type == "seller_echo", Evidence.source_id == ev.mid
+                )
+            )
+        ).scalar_one_or_none()
+        if dup is not None:
+            return None
 
     from peyja.catalog_query import query_catalog
     from peyja.extract.caption import analyze_caption
-    from peyja.extract.catalog import find_brand, find_product_name
+    from peyja.extract.catalog import find_brand, find_product_name, fold
 
     parsed = analyze_caption(ev.text)
     cand = parsed.prices.current
@@ -215,7 +272,20 @@ async def learn_from_seller_echo(
             if last_in and last_in.text:
                 search_text = f"{last_in.text} {ev.text}"
 
-    matches = await query_catalog(session, q=search_text, limit=3)
+    # حتماً باید دست‌کم یک توکن غیرعددی/غیرتعارفی یا نام برند/محصول برای ارجاع وجود داشته باشد
+    meaningful = [
+        t
+        for t in re.split(r"\s+", fold(search_text))
+        if len(t) >= 2
+        and not re.fullmatch(r"[\d۰-۹٠-٩.,/]+", t)
+        and t not in _ECHO_NON_PRODUCT_TOKENS
+    ]
+    if not meaningful and not (find_brand(search_text) or find_product_name(search_text)):
+        return None
+
+    matches = await query_catalog(
+        session, q=" ".join(meaningful) or search_text, include_rejected=False, limit=3
+    )
     if not matches:
         return None
 
@@ -266,3 +336,79 @@ async def learn_from_seller_echo(
         cand.value_toman,
     )
     return {"product_id": product.id, "price_toman": int(cand.value_toman)}
+
+
+async def ingest_official_posts_event(
+    session: AsyncSession, payload: dict[str, Any]
+) -> dict[str, Any] | None:
+    """دریافت نتیجه `action.list_posts` از وب‌هوک رسمی و ساخت فوری کاتالوگ بدون نیاز به Data API."""
+    if str(payload.get("event_type", "")) != "action.list_posts":
+        return None
+    account_id = str(payload.get("account_id") or "")
+    data = payload.get("data") or {}
+    if isinstance(data, list):
+        posts = data
+        username = ""
+        ig_user_id = None
+    elif isinstance(data, dict):
+        posts = (
+            data.get("posts") or data.get("media") or data.get("items") or data.get("data") or []
+        )
+        username = str(data.get("username") or "")
+        ig_user_id = str(data.get("instagram_user_id") or data.get("user_id") or "") or None
+    else:
+        return None
+    if not isinstance(posts, list) or not posts:
+        return None
+
+    page: Page | None = None
+    if account_id:
+        page = (
+            await session.execute(select(Page).where(Page.account_id == account_id))
+        ).scalar_one_or_none()
+    if page is None and username:
+        page = (
+            await session.execute(select(Page).where(Page.username == username))
+        ).scalar_one_or_none()
+    if page is None:
+        uname = username or f"official_{(account_id or 'page')[:12]}"
+        page = Page(
+            username=uname, ig_user_id=ig_user_id, source="official", account_id=account_id or None
+        )
+        session.add(page)
+        await session.flush()
+
+    archived = 0
+    for idx, raw_post in enumerate(posts):
+        if not isinstance(raw_post, dict):
+            continue
+        ig_id = str(
+            raw_post.get("id")
+            or raw_post.get("media_id")
+            or raw_post.get("shortcode")
+            or f"post-{idx}"
+        )
+        norm = dict(raw_post)
+        if "caption" not in norm and "text" in norm:
+            norm["caption"] = norm["text"]
+        existing = (
+            await session.execute(
+                select(RawItem).where(
+                    RawItem.page_id == page.id, RawItem.kind == "media", RawItem.ig_id == ig_id
+                )
+            )
+        ).scalar_one_or_none()
+        if existing is not None:
+            existing.raw = norm
+            existing.fetched_at = utcnow()
+        else:
+            session.add(RawItem(page_id=page.id, kind="media", ig_id=ig_id, raw=norm))
+        archived += 1
+    await session.flush()
+
+    from peyja.extract.pipeline import ExtractionPipeline
+
+    page.last_synced_at = utcnow()
+    stats = await ExtractionPipeline(session, ai=None).run_for_page(page.id)
+    _log.info("📥 پست‌های رسمی (@%s): %s پست ← %s محصول", page.username, archived, stats["products"])
+    return {"page_id": page.id, "username": page.username, "archived": archived, **stats}

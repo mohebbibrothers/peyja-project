@@ -138,5 +138,55 @@
     "id": "adv-028",
     "caption": "ماسک صورت آبرسان برای پوست خشک",
     "expected": {"category": "skincare"}
+  },
+  {
+    "id": "adv-029",
+    "caption": "ادکلن و عطر خنک تابستانی با ماندگاری بالا",
+    "expected": {"category": "perfume"}
+  },
+  {
+    "id": "adv-030",
+    "caption": "اسپری بدن خوشبو کننده و ضد تعریق ۴۸ ساعته",
+    "expected": {"category": "deo_fragrance"}
+  },
+  {
+    "id": "adv-031",
+    "caption": "خط چشم ضدآب و خطچشم مویی مشکی",
+    "expected": {"category": "makeup"}
+  },
+  {
+    "id": "adv-032",
+    "caption": "رژ لب مخملی مات بدون سرب",
+    "expected": {"category": "makeup"}
+  },
+  {
+    "id": "adv-033",
+    "caption": "پرایمر، پنکیک و هایلایتر شاین دار",
+    "expected": {"category": "makeup"}
+  },
+  {
+    "id": "adv-034",
+    "caption": "ضدآفتاب بی‌رنگ و کرم روشن کننده پوست",
+    "expected": {"category": "skincare"}
+  },
+  {
+    "id": "adv-035",
+    "caption": "پودر برنزه صورت مناسب تابستان",
+    "expected": {"category": "makeup"}
+  },
+  {
+    "id": "adv-036",
+    "caption": "فیس واش، میسلار و ژل شستشو برای شستشوی صورت",
+    "expected": {"category": "skincare"}
+  },
+  {
+    "id": "adv-037",
+    "caption": "روغن مو، سرم مو، نرم کننده و حالت دهنده گیاهی",
+    "expected": {"category": "haircare"}
+  },
+  {
+    "id": "adv-038",
+    "caption": "دستمال مرطوب و پد بهداشتی روزانه",
+    "expected": {"category": "hygiene"}
   }
 ]

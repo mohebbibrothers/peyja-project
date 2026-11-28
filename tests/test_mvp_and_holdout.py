@@ -509,3 +509,196 @@ def test_import_holdout_cli_e2e(tmp_path: Path) -> None:
     assert len(rows) == 2
     assert all(r["split"] == "test" and r["category"] is None for r in rows)
     assert out_sheet.exists()
+
+
+def test_echo_anti_loop_comment_private_reply_cards_and_official_posts(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """ضدِ حلقه‌ی بازخورد روی echo، private_reply روی کامنت، کارت‌های قانون صفر و جذب پست‌های رسمی."""
+    import time
+
+    from sqlalchemy import select
+
+    import peyja.config as cfg
+    import peyja.db as dbmod
+    from peyja.extract.pipeline import ExtractionPipeline
+    from peyja.ingest.webhook import sign_payload
+    from peyja.loop.dispatcher import ClassifiedEvent, learn_from_seller_echo, record_inbound
+    from peyja.loop.reply import build_catalog_auto_reply, build_catalog_cards
+    from peyja.models import ExtractionRun, Page, Product, RawItem
+
+    monkeypatch.setenv("DB_PATH", str(tmp_path / "loop.db"))
+    monkeypatch.setenv("BOXAPI_WEBHOOK_SECRET", "whsec_round5")
+    monkeypatch.setenv("CATALOG_AUTO_REPLY", "false")
+    cfg.get_settings.cache_clear()
+    dbmod._engine = None
+    dbmod._session_factory = None
+    try:
+
+        async def _verify_loop() -> None:
+            await dbmod.ensure_schema()
+            factory = dbmod.get_session_factory()
+            async with factory() as session:
+                page = Page(
+                    username="official_shop",
+                    ig_user_id="777",
+                    source="official",
+                    account_id="acc-7",
+                )
+                session.add(page)
+                await session.flush()
+                session.add(
+                    RawItem(
+                        page_id=page.id,
+                        kind="media",
+                        ig_id="op-1",
+                        raw={"caption": "سرم ویتامین سی گارنیر موجوده"},
+                    )
+                )
+                await session.flush()
+
+                s1 = await ExtractionPipeline(session, ai=None).run_for_page(page.id)
+                assert s1["products"] == 1
+                # اجرای مجددِ بدون reprocess نباید تکراری بسازد
+                s2 = await ExtractionPipeline(session, ai=None).run_for_page(page.id)
+                assert s2["skipped"] == 1 and s2["products"] == 0
+
+                # ۱) پیامِ خودکار ربات به شکل echo برگردد → هرگز Offer تکراری نسازد
+                bot_echo = ClassifiedEvent(
+                    kind="echo_message",
+                    account_id="acc-7",
+                    ig_user_id="u-1",
+                    text="سلام 🌸 درباره‌ی «سرم»: قیمت تأییدشده‌ی ثبت‌شده 520,000 تومان است.",
+                    mid="bot-echo-1",
+                )
+                assert await learn_from_seller_echo(session, bot_echo) is None
+
+                # ۲) echo برهنه بدون زمینه‌ی قبلی و نام کالا → به کالای بی‌ربط نچسبد
+                bare_echo = ClassifiedEvent(
+                    kind="echo_message",
+                    account_id="acc-7",
+                    ig_user_id="u-nobody",
+                    text="بله ۵۲۰ هزار تومان",
+                    mid="bare-echo-1",
+                )
+                assert await learn_from_seller_echo(session, bare_echo) is None
+
+                # ۳) echo واقعیِ فروشنده + idempotency روی mid
+                await record_inbound(
+                    session,
+                    ClassifiedEvent(
+                        kind="inbound_message",
+                        account_id="acc-7",
+                        ig_user_id="buyer-1",
+                        text="قیمت سرم گارنیر چنده؟",
+                        mid="in-7",
+                    ),
+                )
+                seller_echo = ClassifiedEvent(
+                    kind="echo_message",
+                    account_id="acc-7",
+                    ig_user_id="buyer-1",
+                    text="بله ۶۴۰ هزار تومان",
+                    mid="seller-echo-1",
+                )
+                learned1 = await learn_from_seller_echo(session, seller_echo)
+                learned2 = await learn_from_seller_echo(session, seller_echo)  # تکراری با همین mid
+                assert learned1 is not None and learned1["price_toman"] == 640_000
+                assert learned2 is None
+
+                # ۴) reprocess نباید محصول تأییدشده‌ی seller_echo را حذف کند
+                await ExtractionPipeline(session, ai=None).run_for_page(page.id, reprocess=True)
+                prods = (await session.execute(select(Product))).scalars().all()
+                assert len(prods) == 1 and prods[0].status == "confirmed"
+                runs = (await session.execute(select(ExtractionRun))).scalars().all()
+                assert len(runs) >= 1 and runs[-1].pipeline_version.startswith("spine-")
+
+                # ۴.۵) اگر health() مغز محلی down باشد، pipeline فوراً به آفلاین برمی‌گردد (صفر فراخوانیِ آویزان)
+                class _UnhealthyAi:
+                    calls = 0
+
+                    async def health(self) -> dict[str, Any]:
+                        return {"ok": False, "error": "down"}
+
+                    async def chat(self, *a: Any, **k: Any) -> str:
+                        self.calls += 1
+                        return "{}"
+
+                    async def extract_from_image(self, *a: Any, **k: Any) -> str:
+                        return ""
+
+                dead_ai = _UnhealthyAi()
+                await ExtractionPipeline(session, ai=dead_ai).run_for_page(page.id, reprocess=True)
+                assert dead_ai.calls == 0
+
+                # ۵) پاسخ private_reply روی کامنت و کارت‌های قانون صفر
+                cev = ClassifiedEvent(
+                    kind="comment",
+                    account_id="acc-7",
+                    ig_user_id="commenter-1",
+                    text="قیمت سرم گارنیر؟",
+                    mid="cmt-55",
+                )
+                creply, draft = await build_catalog_auto_reply(
+                    session, cev, fallback_text="", use_catalog=True
+                )
+                assert creply is not None and creply.comment_id == "cmt-55"
+                assert draft and "640,000" in creply.message
+
+                cards = build_catalog_cards(
+                    [
+                        {
+                            "title_fa": "کالای تأییدشده",
+                            "brand": "گارنیر",
+                            "verified": True,
+                            "price_toman": 640_000,
+                        },
+                        {
+                            "title_fa": "کالای در صف",
+                            "verified": False,
+                            "price_toman": 990_000,
+                            "stock_state": "unknown",
+                        },
+                    ]
+                )
+                assert "640,000" in cards[0]["subtitle"]
+                assert "990,000" not in cards[1]["subtitle"]  # قانون صفر روی کارت محصول
+                await session.commit()
+
+        asyncio.run(_verify_loop())
+
+        # ۶) وب‌هوک action.list_posts به صورت سرتاسری پست‌های رسمی را در کاتالوگ جذب می‌کند
+        client = TestClient(app)
+        now_ms = int(time.time() * 1000)
+        body = {
+            "event_id": f"lp-{now_ms}",
+            "event_type": "action.list_posts",
+            "account_id": "acc-7",
+            "data": {
+                "posts": [
+                    {
+                        "id": "ig-post-99",
+                        "caption": "پلت سایه شاین شیگلم اصل قیمت ۷۸۰ هزار تومان",
+                    }
+                ]
+            },
+        }
+        raw = json.dumps(body, ensure_ascii=False).encode()
+        ts, sig = sign_payload("whsec_round5", raw)
+        resp = client.post(
+            "/webhooks/boxapi",
+            content=raw,
+            headers={
+                "Content-Type": "application/json",
+                "X-BoxApi-Signature": f"sha256={sig}",
+                "X-BoxApi-Timestamp": ts,
+                "X-BoxApi-Event-Id": body["event_id"],
+            },
+        )
+        assert resp.status_code == 200
+        ask = client.get("/api/catalog/ask", params={"q": "سایه شیگلم"}).json()
+        assert ask["matched"] is True and ask["items"][0]["price_toman"] == 780_000
+    finally:
+        cfg.get_settings.cache_clear()
+        dbmod._engine = None
+        dbmod._session_factory = None

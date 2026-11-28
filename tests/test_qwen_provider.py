@@ -683,3 +683,50 @@ def test_hybrid_fuse_recovers_shop_order_cue_and_descriptive_name() -> None:
         },
     )
     assert fused_cmp["product_name"] == "دور چشم"
+
+
+def test_vlm_bench_multimodal_attaches_image_and_falls_back(tmp_path: Path) -> None:
+    """بنچ‌مارک VLM در صورت وجود تصویر آن را می‌فرستد و اگر مدل متنی رد کند به متن برمی‌گردد."""
+    from peyja.vlm_bench import vlm_extract_detailed
+
+    img = tmp_path / "post.jpg"
+    img.write_bytes(b"\xff\xd8\xff\xe0dummy-jpeg")
+
+    class _MockMmAi:
+        def __init__(self) -> None:
+            self.seen: list[Any] = []
+
+        async def chat(self, messages: list[dict[str, Any]], **kwargs: Any) -> str:
+            c = messages[-1]["content"]
+            self.seen.append(c)
+            if isinstance(c, list):
+                raise RuntimeError("vision unsupported")
+            return _GOOD
+
+    ai = _MockMmAi()
+    out = asyncio.run(vlm_extract_detailed(ai, "ریمل اسنس ۵۵۰", image_paths=[img]))
+    assert out.status == "ok" and out.extraction is not None
+    assert isinstance(ai.seen[0], list) and ai.seen[0][1]["type"] == "image_url"
+    assert isinstance(ai.seen[1], str)
+
+
+def test_single_product_with_price_on_next_line_stays_unified() -> None:
+    """خط قیمتِ جدا + هشتگِ پایانی (#ریمل #اسنسصورتی) نباید محصول را از قیمتش بشکند."""
+    from peyja.extract.pipeline import ExtractionPipeline
+
+    cap = (
+        "👀 مژه\u200cهاتو چند برابر کن!\n✨ ریمل اسنس موجود شد\n۵۵۰💸\n\n"
+        "#آرایش #ریمل #اسنسصورتی #لوازم_ارایشی"
+    )
+    prods = ExtractionPipeline.extract_multi_fa(cap)
+    assert len(prods) == 1
+    assert prods[0]["price_toman"] == 550_000
+    assert prods[0]["product_name"] == "ریمل"
+    assert prods[0]["brand"] == "اسنس"
+
+    cap_cta = "ریمل اسنس اصل\n۵۵۰ هزار تومان\nثبت سفارش دایرکت📤"
+    prods_cta = ExtractionPipeline.extract_multi_fa(cap_cta)
+    assert len(prods_cta) == 1 and prods_cta[0]["price_toman"] == 550_000
+
+    meme = "یه اعتراف کنید...\nشما هم همینطورین؟\nبفرست براش🩷"
+    assert len(ExtractionPipeline.extract_multi_fa(meme)) == 1

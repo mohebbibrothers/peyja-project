@@ -36,6 +36,7 @@ from peyja.extract.schema import SafeProductExtraction, route_by_confidence
 from peyja.models import (
     CaptionVersion,
     Evidence,
+    ExtractionRun,
     MediaFile,
     Offer,
     Product,
@@ -261,13 +262,56 @@ class ExtractionPipeline:
         self.ai = ai
         self.settings = get_settings()
 
-    async def run_for_page(self, page_id: int) -> dict[str, Any]:
+    async def run_for_page(self, page_id: int, *, reprocess: bool = False) -> dict[str, Any]:
         result = await self.session.execute(
             select(RawItem).where(RawItem.page_id == page_id, RawItem.kind == "media")
         )
         raw_items = result.scalars().all()
+
+        # اگر مغز محلی (WireGuard) قطع باشد، یک health check سریع مانع timeout روی تک‌تک آیتم‌ها می‌شود
+        saved_ai = self.ai
+        if self.ai is not None and hasattr(self.ai, "health"):
+            try:
+                h = await self.ai.health()
+                if not h.get("ok", False):
+                    self.ai = None
+            except Exception:
+                self.ai = None
+
+        # حفاظت از محصولات تأییدشده توسط فروشنده/echo (قانون صفر) + جلوگیری از تکرار
+        protected_product_ids: set[int] = set()
+        ev_rows = (
+            await self.session.execute(
+                select(Evidence.product_id, Evidence.source_id, Evidence.method)
+                .join(Product, Product.id == Evidence.product_id)
+                .where(Product.page_id == page_id)
+            )
+        ).all()
+        extracted_sources: set[str] = {str(src) for _, src, _ in ev_rows if src}
+        for pid, _src, method in ev_rows:
+            if pid and method in ("human_review", "echo_dm"):
+                protected_product_ids.add(int(pid))
+        protected_sources: set[str] = {
+            str(src) for pid, src, _ in ev_rows if pid and int(pid) in protected_product_ids and src
+        }
+
+        if reprocess:
+            old_prods = (
+                (await self.session.execute(select(Product).where(Product.page_id == page_id)))
+                .scalars()
+                .all()
+            )
+            for prod in old_prods:
+                if prod.id not in protected_product_ids:
+                    await self.session.delete(prod)
+            await self.session.flush()
+            skip_sources = protected_sources
+        else:
+            skip_sources = extracted_sources
+
         stats: dict[str, Any] = {
             "processed": 0,
+            "skipped": 0,
             "products": 0,
             "offers": 0,
             "stored": 0,
@@ -275,10 +319,21 @@ class ExtractionPipeline:
             "rejected": 0,
             "vlm_calls": 0,
         }
-        for item in raw_items:
-            out = await self.process_raw_item(item, page_id)
-            for k in stats:
-                stats[k] += out.get(k, 0)
+        try:
+            for item in raw_items:
+                if str(item.ig_id) in skip_sources:
+                    stats["skipped"] += 1
+                    continue
+                out = await self.process_raw_item(item, page_id)
+                for k, v in out.items():
+                    stats[k] = stats.get(k, 0) + v
+        finally:
+            self.ai = saved_ai
+        if stats["processed"] > 0:
+            self.session.add(
+                ExtractionRun(page_id=page_id, pipeline_version=PIPELINE_VERSION, stats=stats)
+            )
+            await self.session.flush()
         return stats
 
     async def process_raw_item(self, item: RawItem, page_id: int) -> dict[str, int]:
@@ -439,13 +494,15 @@ class ExtractionPipeline:
         }
         for spec in specs:
             route_conf = float(spec["confidence"])
-            if (
-                spec["price"] is None
-                and route_conf < self.settings.extract_review_floor
-                and spec["category"]
-                and (spec["brand"] or find_product_name(spec["name"] or ""))
-            ):
-                route_conf = max(route_conf, 0.55)
+            if spec["price"] is None:
+                # قانون صفر: کالای بدون قیمت تأییدشده هرگز خودکار «confirmed» نمی‌شود
+                route_conf = min(route_conf, 0.65)
+                if (
+                    route_conf < self.settings.extract_review_floor
+                    and spec["category"]
+                    and (spec["brand"] or find_product_name(spec["name"] or ""))
+                ):
+                    route_conf = max(route_conf, 0.55)
             route = route_by_confidence(route_conf, self.settings.extract_review_floor)
             status = {"store": "confirmed", "review": "candidate", "reject": "rejected"}[route]
             stats[{"store": "stored", "review": "human_review", "reject": "rejected"}[route]] += 1
@@ -539,13 +596,22 @@ class ExtractionPipeline:
         """استخراجِ چندمحصوله — «همه‌ی محصولاتِ یک پست، نه فقط یکی» (نکته‌ی ۱).
 
         جداکننده‌های صریح (خط/گلوله/شماره/ایموجی) ← تکه‌بندیِ واژه‌ی محصول؛
-        تکه‌هایِ بی‌نام/بی‌برند/بی‌قیمت (متنِ توضیحی) دور ریخته می‌شوند.
+        سطرهایِ صرفاً قیمتی/توضیحی («۵۵۰💸»، «ثبت سفارش دایرکت») به‌عنوان کالایِ مجزا شکسته نمی‌شوند
+        تا قیمت از کالایِ اصلی جدا نیفتد.
         """
         spans = split_product_spans(caption_text or "")
+        # خطوطِ صرفاً هشتگی (#ریمل #اسنس...) محصولِ مستقل حساب نمی‌شوند
         kept = [
-            s for s in spans if find_product_name(s) or find_brand(s) or re.search(r"\d{3,}", s)
+            s
+            for s in spans
+            if re.sub(r"#\S+", "", s).strip() and (find_product_name(s) or find_brand(s))
         ]
-        pool = kept or spans
+        if len(kept) >= 2:
+            pool = kept
+        elif len(kept) == 1:
+            pool = [caption_text or kept[0]]
+        else:
+            pool = [caption_text or ""]
         return [
             {**ExtractionPipeline.extract_signals_fa(span), "span": span[:200]} for span in pool
         ]
@@ -908,23 +974,19 @@ _LETTER_RE = re.compile(r"[A-Za-z\u0600-\u06FF]")
 
 
 def _guess_category(text: str) -> str | None:
-    """دسته‌یابی دو لایه: محصول/برند مشخص (بلندترین) ← خانواده‌ی غالب (اکثریت).
+    """دسته‌یابی دو لایه: محصول/برند مشخص (بلندترین) ← خانواده‌ی غالبِ غیرهمپوشان.
 
     «کرم پودر»/«پوست سر»/«bb کرم» بر «کرم»/«پوست» مقدم‌اند؛ «ابرسان» و «آبرسان»
-    یکی‌اند؛ کپشنِ «آرایشی و پوستی»ِ هم‌سطح = بدون دسته‌ی غالب (None).
+    یکی‌اند؛ شمارشِ غیرهمپوشان مانع دوبارشماریِ «پوست/پوستی» و «آرایش/آرایشی» می‌شود.
     """
     folded = _fold_fa(text.replace("\u200c", " "))
     for fa, en in sorted(CATEGORY_MAP.items(), key=lambda kv: -len(kv[0])):
         if _key_hits(folded, _fold_fa(fa)):
             return en
-    counts: dict[str, int] = {}
-    for fa, en in CATEGORY_FAMILY.items():
-        n = folded.count(_fold_fa(fa))
-        if n:
-            counts[en] = counts.get(en, 0) + n
+    counts, _ = count_category_signals(text)
     if not counts:
         return None
-    ranked = sorted(counts.items(), key=lambda kv: -kv[1])
+    ranked = counts.most_common()
     if len(ranked) >= 2 and ranked[0][1] == ranked[1][1]:
         return None  # خانواده‌های هم‌سطح — «آرایشی و پوستی» — بدون غالب
     return ranked[0][0]

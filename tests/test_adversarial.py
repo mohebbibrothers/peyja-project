@@ -37,3 +37,14 @@ def test_adversarial_suite() -> None:
                 if r.get(key) != want:
                     fails.append(f"{case['id']}: {key} want={want!r} got={r.get(key)!r}")
     assert not fails, "\n".join(fails)
+
+
+def test_adversarial_covers_lexicon_without_dead_keys() -> None:
+    """قانون ۵ بند ۴: هر کلیدِ CATEGORY_MAP باید در dev یا مجموعه پرتگاه (adversarial) بسوزد."""
+    from peyja.evals import lexicon_audit
+
+    gold_path = Path(__file__).resolve().parents[1] / "evals" / "gold-100" / "samples.json"
+    gold = json.loads(gold_path.read_text(encoding="utf-8"))
+    adv = json.loads(ADV_PATH.read_text(encoding="utf-8"))
+    audit = lexicon_audit(gold + adv)
+    assert audit["dead_keys"] == [], f"کلیدهای مرده در واژگان دسته: {audit['dead_keys']}"

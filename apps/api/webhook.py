@@ -107,9 +107,17 @@ async def boxapi_webhook(
         if existing:
             return {"status": "duplicate"}
 
-        # طبقه‌بندی + ثبت پیام‌های ورودی + یادگیری از echo فروشنده (حلقه‌ی رسمی)
+        # طبقه‌بندی + ثبت پیام‌های ورودی + یادگیری از echo فروشنده + جذب پست‌های رسمی (action.list_posts)
         # قرارداد BoxAPI: پیام‌ها داخل آرایه‌ی data.messaging[] — چند رویداد در یک payload
-        from peyja.loop.dispatcher import classify_events, learn_from_seller_echo, record_inbound
+        from peyja.loop.dispatcher import (
+            classify_events,
+            ingest_official_posts_event,
+            learn_from_seller_echo,
+            record_inbound,
+        )
+
+        if event_type == "action.list_posts":
+            await ingest_official_posts_event(session, payload)
 
         classified_list = classify_events(payload)
         for classified in classified_list:
@@ -137,7 +145,7 @@ async def boxapi_webhook(
     # (BoxAPI در صورت timeout تا ۳ بار retry می‌کند؛ پاسخ سریع = بدون پاسخ تکراری)
     from peyja.loop.reply import build_catalog_auto_reply, send_auto_reply
 
-    # برای هر فرستنده فقط یک پاسخ خودکار (چند پیام در یک payload = یک پاسخ)
+    # برای هر فرستنده یا کامنت فقط یک پاسخ خودکار (چند پیام در یک payload = یک پاسخ)
     replied_to: set[str] = set()
     async with factory() as session:
         for classified in classified_list:
@@ -147,13 +155,16 @@ async def boxapi_webhook(
                 fallback_text=settings.auto_reply_text,
                 use_catalog=settings.catalog_auto_reply,
             )
-            if shadow_draft and classified.ig_user_id:
+            if shadow_draft and (classified.ig_user_id or classified.mid):
                 _log.info(
-                    "📝 پیش‌نویس کاتالوگ (A1) برای %s: %s", classified.ig_user_id, shadow_draft
+                    "📝 پیش‌نویس کاتالوگ (A1) برای %s: %s",
+                    classified.ig_user_id or classified.mid,
+                    shadow_draft,
                 )
-            if reply and reply.recipient_id not in replied_to:
-                replied_to.add(reply.recipient_id)
-                _log.info("🤖 پاسخ خودکار زمان‌بندی شد → %s", reply.recipient_id)
+            dedup_key = (reply.comment_id or reply.recipient_id) if reply else ""
+            if reply and dedup_key not in replied_to:
+                replied_to.add(dedup_key)
+                _log.info("🤖 پاسخ خودکار زمان‌بندی شد → %s", dedup_key)
                 background_tasks.add_task(send_auto_reply, reply)
             elif classified.kind == "inbound_message":
                 _log.info(

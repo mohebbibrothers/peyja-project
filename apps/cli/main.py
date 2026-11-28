@@ -43,27 +43,68 @@ async def _crawl(username: str, max_media: int) -> None:
 
 
 @app.command()
-def extract(page_id: int) -> None:
+def extract(
+    page_id: int,
+    reprocess: bool = typer.Option(
+        False, "--reprocess", help="بازاستخراج کالاهای غیرتأییدشده با نسخه‌ی جدید پایپ‌لاین"
+    ),
+    offline: bool = typer.Option(False, "--offline", help="اجرای استخراجِ قطعی بدون فراخوانی VLM"),
+) -> None:
     """استخراج کاتالوگ از raw_items یک پیج."""
-    asyncio.run(_extract(page_id))
+    asyncio.run(_extract(page_id, reprocess=reprocess, offline=offline))
 
 
-async def _extract(page_id: int) -> None:
+async def _extract(page_id: int, *, reprocess: bool = False, offline: bool = False) -> None:
     from peyja.db import ensure_schema, get_session_factory
     from peyja.extract.pipeline import ExtractionPipeline
     from peyja.provider.llm import get_ai_provider
 
     await ensure_schema()
     factory = get_session_factory()
-    ai = get_ai_provider()
+    ai = None if offline else get_ai_provider()
     try:
         async with factory() as session:
             pipeline = ExtractionPipeline(session, ai=ai)
-            stats = await pipeline.run_for_page(page_id)
+            stats = await pipeline.run_for_page(page_id, reprocess=reprocess)
             await session.commit()
             typer.echo(json.dumps(stats, ensure_ascii=False, indent=2))
     finally:
-        await ai.aclose()
+        if ai is not None:
+            await ai.aclose()
+
+
+@app.command("sync-official")
+def sync_official(
+    account_id: str = typer.Option("", "--account-id", help="UUID اکانت رسمی — خالی = همه‌ی فعال‌ها"),
+) -> None:
+    """درخواست async فهرست پست‌های پیج رسمی متصل (نتیجه به وب‌هوک `action.list_posts` برمی‌گردد)."""
+    asyncio.run(_sync_official(account_id))
+
+
+async def _sync_official(account_id: str = "") -> None:
+    from peyja.provider.boxapi_official import BoxApiOfficialProvider, OfficialApiError
+
+    provider = BoxApiOfficialProvider()
+    try:
+        targets: list[tuple[str, str]] = []
+        if account_id:
+            targets.append((account_id, account_id))
+        else:
+            accounts = await provider.get_accounts()
+            for a in accounts:
+                if a.get("is_active") and a.get("id"):
+                    targets.append((str(a["id"]), str(a.get("username") or a["id"])))
+        if not targets:
+            typer.echo("❌ هیچ اکانت فعالی در API رسمی پیدا نشد")
+            raise typer.Exit(code=1)
+        for aid, uname in targets:
+            res = await provider.list_posts(aid)
+            typer.echo(f"📥 @{uname} ({aid}) → {json.dumps(res, ensure_ascii=False)}")
+    except OfficialApiError as e:
+        typer.echo(f"❌ خطای API رسمی: {e}")
+        raise typer.Exit(code=1) from e
+    finally:
+        await provider.aclose()
 
 
 @app.command()

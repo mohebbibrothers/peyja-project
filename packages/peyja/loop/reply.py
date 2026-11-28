@@ -20,11 +20,28 @@ log = logging.getLogger("peyja.autoreply")
 
 @dataclass(frozen=True)
 class AutoReply:
-    """دستور ارسال پاسخ خودکار."""
+    """دستور ارسال پاسخ خودکار (DM یا private_reply روی کامنت)."""
 
     account_id: str
     recipient_id: str
     message: str
+    comment_id: str | None = None
+
+
+def build_catalog_cards(items: list[dict[str, Any]], max_cards: int = 5) -> list[dict[str, Any]]:
+    """ساخت کارت محصول برای send_generic_template با رعایت سخت‌گیرانه‌ی قانون صفر."""
+    cards: list[dict[str, Any]] = []
+    for it in items[:max_cards]:
+        title = (it.get("title_fa") or it.get("product_name") or "محصول")[:80]
+        if it.get("verified") and it.get("price_toman"):
+            price_txt = f"{int(it['price_toman']):,} تومان ✓"
+        elif it.get("stock_state") == "on_request":
+            price_txt = "قیمت استعلامی در دایرکت"
+        else:
+            price_txt = "در انتظار تأیید فروشنده"
+        brand_txt = f"برند {it['brand']} · " if it.get("brand") else ""
+        cards.append({"title": title, "subtitle": f"{brand_txt}{price_txt}"[:80]})
+    return cards
 
 
 def build_auto_reply(
@@ -45,6 +62,9 @@ def build_auto_reply(
     return AutoReply(ev.account_id, ev.ig_user_id, auto_reply_text)
 
 
+_COMMENT_INQUIRY_RE = ("قیمت", "چنده", "موجود", "سفارش", "شرایط")
+
+
 async def build_catalog_auto_reply(
     session: Any,
     ev: ClassifiedEvent,
@@ -54,14 +74,40 @@ async def build_catalog_auto_reply(
     state: WindowState = WindowState.OPEN_24H,
     human_agent_tag: bool = False,
 ) -> tuple[AutoReply | None, str | None]:
-    """تولید پاسخ مدرک‌محور از کاتالوگ (A1 shadow draft + اختیاری در ارسال خودکار)."""
+    """تولید پاسخ مدرک‌محور از کاتالوگ (DM + private_reply روی کامنت)."""
+    if ev.kind == "comment":
+        if not (ev.account_id and ev.mid):
+            return None, None
+        draft_text: str | None = None
+        if ev.text and ev.text.strip():
+            from peyja.catalog_query import answer_product_query
+
+            ans = await answer_product_query(session, ev.text)
+            if ans.get("matched"):
+                draft_text = ans.get("reply_text")
+            elif any(w in ev.text for w in _COMMENT_INQUIRY_RE):
+                draft_text = fallback_text or (
+                    "سلام 🌸 پیام شما ثبت شد؛ برای استعلام قیمت دقیق و موجودی همینجا در دایرکت پاسخ می‌دهیم."
+                )
+        if use_catalog and draft_text:
+            return (
+                AutoReply(
+                    account_id=ev.account_id,
+                    recipient_id=ev.ig_user_id or ev.mid,
+                    message=draft_text,
+                    comment_id=ev.mid,
+                ),
+                draft_text,
+            )
+        return None, draft_text
+
     if ev.kind != "inbound_message" or not (ev.account_id and ev.ig_user_id):
         return None, None
     allowed, _reason = can_send(state, human_agent_tag=human_agent_tag)
     if not allowed:
         return None, None
 
-    draft_text: str | None = None
+    draft_text = None
     if ev.text and ev.text.strip():
         from peyja.catalog_query import answer_product_query
 
@@ -76,21 +122,29 @@ async def build_catalog_auto_reply(
 
 
 async def send_auto_reply(reply: AutoReply) -> bool:
-    """ارسال از مسیر API رسمی — خطا هرگز حلقه را نمی‌شکند (فقط لاگ)."""
+    """ارسال از مسیر API رسمی (DM یا private_reply کامنت) — خطا هرگز حلقه را نمی‌شکند."""
     from peyja.provider.boxapi_official import BoxApiOfficialProvider
 
     provider = BoxApiOfficialProvider()
     try:
         log.info(
-            "🤖 تلاش ارسال پاسخ خودکار → %s (account=%s)",
+            "🤖 تلاش ارسال پاسخ خودکار → %s (account=%s comment=%s)",
             reply.recipient_id,
             reply.account_id,
+            reply.comment_id or "-",
         )
-        result = await provider.send_message(
-            account_id=reply.account_id,
-            recipient_id=reply.recipient_id,
-            message=reply.message,
-        )
+        if reply.comment_id:
+            result = await provider.private_reply(
+                account_id=reply.account_id,
+                comment_id=reply.comment_id,
+                message=reply.message,
+            )
+        else:
+            result = await provider.send_message(
+                account_id=reply.account_id,
+                recipient_id=reply.recipient_id,
+                message=reply.message,
+            )
         log.info("پاسخ خودکار ارسال شد → %s (%s)", reply.recipient_id, result.get("accepted"))
         return True
     except Exception as e:

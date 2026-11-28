@@ -214,10 +214,13 @@ class OpenAICompatProvider:
 
     # ── سلامت ────────────────────────────────────────────────────────────
     async def health(self) -> dict[str, Any]:
-        """GET /models — پیش‌آزمونِ doctor و بنچ‌مارک (هرگز exception نمی‌دهد)."""
+        """GET /models — پیش‌آزمونِ سریع (حداکثر ۵ ثانیه) برای doctor و بنچ‌مارک (هرگز exception نمی‌دهد)."""
         t0 = time.perf_counter()
         try:
-            resp = await self._client.get(f"{self._base_url}/models", headers=self._headers())
+            probe_timeout = min(float(self._timeout), 5.0)
+            resp = await self._client.get(
+                f"{self._base_url}/models", headers=self._headers(), timeout=probe_timeout
+            )
             resp.raise_for_status()
             data = resp.json()
             raw_list = data.get("data", []) if isinstance(data, dict) else data

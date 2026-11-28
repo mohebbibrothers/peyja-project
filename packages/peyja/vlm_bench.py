@@ -17,6 +17,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import time
 from collections import Counter
@@ -126,13 +127,45 @@ def _to_pred(sample_id: str, r: SafeProductExtraction) -> dict[str, Any]:
     }
 
 
-async def vlm_extract_detailed(provider: Any, caption: str) -> VlmOutcome:
-    """استخراج یک کپشن با ثبتِ دقیق وضعیت، زمان، توکن و دلیل شکست."""
+def _sample_image_paths(sample: dict[str, Any]) -> list[Path]:
+    raw = sample.get("image_path") or sample.get("image_paths") or []
+    items = [raw] if isinstance(raw, (str, Path)) else list(raw)
+    out: list[Path] = []
+    for item in items:
+        p = Path(item)
+        if p.suffix.lower() in {".jpg", ".jpeg", ".png", ".webp"} and p.is_file():
+            try:
+                if p.stat().st_size <= 4 * 1024 * 1024:
+                    out.append(p)
+            except OSError:
+                continue
+        if len(out) >= 2:
+            break
+    return out
+
+
+async def vlm_extract_detailed(
+    provider: Any, caption: str, *, image_paths: list[Path] | None = None
+) -> VlmOutcome:
+    """استخراج یک کپشن (+ تصویر در دسترس) با ثبتِ دقیق وضعیت، زمان، توکن و دلیل شکست."""
     user_prompt = f"اسکیمای JSON:\n{_SCHEMA_JSON}\n\nکپشن:\n{caption or '(بدون کپشن)'}"
+    user_content: str | list[dict[str, Any]] = user_prompt
+    if image_paths:
+        parts: list[dict[str, Any]] = [{"type": "text", "text": user_prompt}]
+        for img in image_paths:
+            ext = img.suffix.lstrip(".").lower() or "jpg"
+            mime = {"jpg": "jpeg", "jpeg": "jpeg", "png": "png", "webp": "webp"}.get(ext, "jpeg")
+            b64 = base64.b64encode(img.read_bytes()).decode()
+            parts.append(
+                {"type": "image_url", "image_url": {"url": f"data:image/{mime};base64,{b64}"}}
+            )
+        user_content = parts
+
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": VLM_SYSTEM_PROMPT},
-        {"role": "user", "content": user_prompt},
+        {"role": "user", "content": user_content},
     ]
+    used_vision = bool(image_paths)
     t0 = time.perf_counter()
     prompt_toks = 0
     comp_toks = 0
@@ -157,6 +190,13 @@ async def vlm_extract_detailed(provider: Any, caption: str) -> VlmOutcome:
                 if "<think>" in text.lower():
                     had_thinking = True
         except Exception as e:
+            if used_vision:
+                used_vision = False
+                messages = [
+                    {"role": "system", "content": VLM_SYSTEM_PROMPT},
+                    {"role": "user", "content": user_prompt},
+                ]
+                continue
             return VlmOutcome(
                 status="failed",
                 error=f"{type(e).__name__}: {e}",
@@ -339,7 +379,11 @@ async def run_vlm_benchmark(
         if sid in cache:
             return
         async with sem:
-            outcome = await vlm_extract_detailed(provider, sample.get("caption") or "")
+            outcome = await vlm_extract_detailed(
+                provider,
+                sample.get("caption") or "",
+                image_paths=_sample_image_paths(sample),
+            )
         if outcome.status == "failed" or outcome.extraction is None:
             entry: dict[str, Any] = {
                 "id": sid,
