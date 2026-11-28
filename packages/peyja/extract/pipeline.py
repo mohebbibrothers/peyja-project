@@ -814,9 +814,10 @@ def choose_hybrid_category(
                 and ranked[0][1] == ranked[1][1]
             ):
                 return None
-        elif vlm_category != offline_category:
-            if counts.get(offline_category, 0) > counts.get(vlm_category, 0):
-                return offline_category
+        elif vlm_category != offline_category and counts.get(offline_category, 0) > counts.get(
+            vlm_category, 0
+        ):
+            return offline_category
     return vlm_category
 
 
