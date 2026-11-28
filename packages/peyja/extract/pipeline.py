@@ -803,10 +803,20 @@ def choose_hybrid_category(
     """داوری نهایی دسته در پایپ‌لاین ترکیبی: VLM معنایی vs اکثریت غیرهمپوشان روی هشتگ‌ها."""
     if not vlm_category:
         return offline_category
-    if offline_category and vlm_category != offline_category and not vlm_has_specific:
-        counts, _ = count_category_signals(caption)
-        if counts.get(offline_category, 0) > counts.get(vlm_category, 0):
-            return offline_category
+    if not vlm_has_specific:
+        counts, spec_n = count_category_signals(caption)
+        if offline_category is None:
+            ranked = counts.most_common()
+            if (
+                spec_n == 0
+                and not find_brand(caption)
+                and len(ranked) >= 2
+                and ranked[0][1] == ranked[1][1]
+            ):
+                return None
+        elif vlm_category != offline_category:
+            if counts.get(offline_category, 0) > counts.get(vlm_category, 0):
+                return offline_category
     return vlm_category
 
 

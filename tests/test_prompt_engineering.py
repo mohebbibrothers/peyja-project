@@ -131,3 +131,13 @@ def test_hybrid_fusion_and_latin_series_preservation() -> None:
     off_beg = ExtractionPipeline.extract_signals_fa(cap_beg)
     res_beg = hybrid_fuse_dict(cap_beg, off_beg, {"id": "x4", "category": None, "abstained": True})
     assert res_beg["category"] is None and res_beg["abstained"] is True
+
+    # تساوی چند هشتگ عمومیِ بدون نام کالا و برند → در هیبرید هم خنثی می‌ماند
+    cap_tie = "شمام اینجورین؟😂 #محصولات_آرایشی #روتین_پوستی #لوازم_بهداشتی"
+    off_tie = ExtractionPipeline.extract_signals_fa(cap_tie)
+    res_tie = hybrid_fuse_dict(
+        cap_tie,
+        off_tie,
+        {"id": "x5", "category": "makeup", "product_name": "محصولات آرایشی", "abstained": False},
+    )
+    assert res_tie["category"] is None
