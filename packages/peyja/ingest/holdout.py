@@ -72,11 +72,36 @@ def build_holdout_from_raw(
             }
         )
 
-    raw_pool.sort(key=lambda r: (not r["has_price_hint"], r["username"]))
+    # توزیع گردشی بین همه‌ی فروشندگان و ترکیب متعادل قیمت‌دار/غیرقیمت‌دار (جلوگیری از انحصار یک فروشنده یا فقط پست‌های قیمت‌دار)
+    by_seller: dict[str, list[dict[str, Any]]] = {}
+    for row in raw_pool:
+        by_seller.setdefault(row["username"], []).append(row)
+    interleaved: list[dict[str, Any]] = []
+    for uname in sorted(by_seller):
+        items_u = by_seller[uname]
+        priced_u = [r for r in items_u if r["has_price_hint"]]
+        unpriced_u = [r for r in items_u if not r["has_price_hint"]]
+        mixed_u: list[dict[str, Any]] = []
+        while priced_u or unpriced_u:
+            if priced_u:
+                mixed_u.append(priced_u.pop(0))
+            if unpriced_u:
+                mixed_u.append(unpriced_u.pop(0))
+        by_seller[uname] = mixed_u
+
+    seller_order = sorted(by_seller)
+    while len(interleaved) < len(raw_pool):
+        progressed = False
+        for uname in seller_order:
+            if by_seller[uname]:
+                interleaved.append(by_seller[uname].pop(0))
+                progressed = True
+        if not progressed:
+            break
 
     selected: list[dict[str, Any]] = []
     seller_counts: Counter[str] = Counter()
-    for row in raw_pool:
+    for row in interleaved:
         if len(selected) >= target:
             break
         cap = row["caption"]

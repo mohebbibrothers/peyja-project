@@ -24,6 +24,8 @@ build/
 # اپ
 data/
 out/
+tmp/
+logs/
 *.db
 *.sqlite3
 

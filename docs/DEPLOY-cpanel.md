@@ -165,7 +165,7 @@ cPanel هنگام «Create a New Domain» (حالت Registered Domain) بررس�
    بعد از هر تغییر `.env` → در cPanel حتماً **Restart** بزنید.
 ۴. **selftest با شکل واقعی:** `bash /home/kavehncp/peyja/scripts/peyja.sh selftest-webhook --url https://<دامنه>/webhooks/boxapi`
    باید HTTP 200 + event + message + window بدهد (payload آن حالا انولوپ واقعی `data.messaging[]` است).
-۵. **کرال خودکار بی‌هزینه (اختیاری روی سرور cPanel):** `bash /home/kavehncp/peyja/scripts/peyja.sh crawl-public milnohub Shadibeautyskincare Garnimarket --per-page 22 --media`
+۵. **کرالر سبک اینستاگرام با اکانت تستی برای بچ ۲:** برای جمع‌آوری داده‌ی اینستاگرام فروشگاه‌های جدید از `scripts/ig_lite_browser.js` (در مرورگر) یا `bash /home/kavehncp/peyja/scripts/peyja.sh crawl-ig-lite --sessionid "..."` و سپس `ingest-ig-raw ig-batch2-raw.json --build-holdout` استفاده کنید.
 
 نکته‌ی عملیاتی: بعد از selftest ممکن است در لاگ «ارسال پاسخ خودکار ناموفق» ببینید — برای گیرنده‌ی
 مصنوعیِ selftest طبیعی و بی‌اهمیت است؛ مهم HTTP 200 و ثبت event/message است.

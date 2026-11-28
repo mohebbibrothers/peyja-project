@@ -42,68 +42,181 @@ async def _crawl(username: str, max_media: int) -> None:
     await provider.aclose()
 
 
-@app.command("crawl-public")
-def crawl_public(
-    channels: list[str] = typer.Argument(..., help="نام کانال‌های عمومی فروشگاه‌ها (بدون @)"),
-    per_page: int = typer.Option(20, "--per-page", "-n", help="حداکثر پست از هر کانال"),
-    download_media: bool = typer.Option(
-        True, "--media/--no-media", help="دانلود تصاویر واقعی محصول در data/media"
+@app.command("crawl-ig-lite")
+def crawl_ig_lite(
+    accounts: list[str] = typer.Argument(
+        None, help="نام پیج‌های اینستاگرامی فروشگاه‌ها (خالی = ۷ فروشگاه پیش‌فرض)"
     ),
-    extract_after: bool = typer.Option(
-        False, "--extract/--no-extract", help="استخراج فوری کاتالوگ پس از کرال"
+    sessionid: str = typer.Option(
+        "", "--sessionid", envvar="IG_SESSION_ID", help="کوکی sessionid مرورگر (امن‌ترین روش)"
     ),
-    offline: bool = typer.Option(
-        True, "--offline/--vlm", help="حالت استخراج بعد از کرال (قطعی آفلاین یا VLM)"
+    csrftoken: str = typer.Option(
+        "", "--csrftoken", envvar="IG_CSRF_TOKEN", help="کوکی csrftoken (اختیاری)"
+    ),
+    username: str = typer.Option(
+        "", "--username", help="نام کاربری اکانت تستی (اگر sessionid ندادید)"
+    ),
+    password: str = typer.Option("", "--password", help="رمز عبور اکانت تستی"),
+    per_shop: int = typer.Option(8, "--per-shop", "-n", help="حداکثر پست از هر فروشگاه"),
+    max_total: int = typer.Option(60, "--max-total", help="سقف کل پست‌ها"),
+    out: Path = typer.Option(Path("out/ig-batch2-raw.json"), "--out", help="مسیر فایل JSON خام"),
+    download_media: bool = typer.Option(True, "--media/--no-media", help="دانلود تصاویر محصولات"),
+    build_holdout: bool = typer.Option(
+        True, "--build-holdout/--no-build-holdout", help="ساخت برگه‌ی کور بچ ۲ (split=test)"
+    ),
+    print_browser_script: bool = typer.Option(
+        False, "--print-browser-script", help="چاپ اسکریپت مرورگر (بدون نیاز به ورود در ترمینال)"
     ),
 ) -> None:
-    """کرال رایگان پست‌ها و تصاویرِ فروشگاه‌های واقعی از کانال عمومی (بدون مصرف Data API)."""
+    """کرالر سبک اینستاگرام با اکانت تستی برای جمع‌آوری بچ ۲ (۱ درخواست به ازای هر پیج)."""
+    if print_browser_script:
+        script_path = Path("scripts/ig_lite_browser.js")
+        if not script_path.exists():
+            typer.echo("❌ scripts/ig_lite_browser.js پیدا نشد")
+            raise typer.Exit(code=1)
+        typer.echo(script_path.read_text(encoding="utf-8"))
+        return
+
     asyncio.run(
-        _crawl_public(
-            channels,
-            per_page=per_page,
+        _crawl_ig_lite(
+            accounts or [],
+            sessionid=sessionid,
+            csrftoken=csrftoken,
+            username=username,
+            password=password,
+            per_shop=per_shop,
+            max_total=max_total,
+            out=out,
             download_media=download_media,
-            extract_after=extract_after,
-            offline=offline,
+            build_holdout=build_holdout,
         )
     )
 
 
-async def _crawl_public(
-    channels: list[str],
+async def _crawl_ig_lite(
+    accounts: list[str],
     *,
-    per_page: int,
+    sessionid: str,
+    csrftoken: str,
+    username: str,
+    password: str,
+    per_shop: int,
+    max_total: int,
+    out: Path,
     download_media: bool,
-    extract_after: bool,
-    offline: bool,
+    build_holdout: bool,
 ) -> None:
+    import getpass
+
     from peyja.db import ensure_schema, get_session_factory
-    from peyja.extract.pipeline import ExtractionPipeline
-    from peyja.ingest.public_channel import PublicChannelCrawler
-    from peyja.provider.llm import get_ai_provider
+    from peyja.ingest.ig_lite import (
+        DEFAULT_IG_SHOPS,
+        IgLiteAuthError,
+        IgLiteCrawler,
+        dump_raw_json,
+        ingest_ig_raw_items,
+    )
+
+    shops = list(accounts) if accounts else list(DEFAULT_IG_SHOPS)
+    crawler = IgLiteCrawler(sessionid=sessionid, csrftoken=csrftoken)
+    try:
+        if not sessionid.strip():
+            if not username.strip():
+                typer.echo(
+                    "❌ یا --sessionid بدهید یا --username (یا برای اجرای درون مرورگر از --print-browser-script استفاده کنید)."
+                )
+                raise typer.Exit(code=2)
+            pw = password or getpass.getpass(f"رمز عبور اینستاگرام (@{username}): ")
+            try:
+                await crawler.login_web(username, pw)
+            except IgLiteAuthError as e:
+                typer.echo(f"❌ {e}")
+                raise typer.Exit(code=1) from e
+
+        crawl_res = await crawler.crawl_shops(shops, per_shop=per_shop, max_total=max_total)
+        raw_items = crawl_res["items"]
+        dump_raw_json(raw_items, out)
+    finally:
+        await crawler.aclose()
+
+    if not raw_items:
+        typer.echo(
+            json.dumps(
+                {k: v for k, v in crawl_res.items() if k != "items"},
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+        raise typer.Exit(code=1)
 
     await ensure_schema()
     factory = get_session_factory()
-    ai = None if (not extract_after or offline) else get_ai_provider()
-    out: list[dict[str, object]] = []
-    try:
-        async with factory() as session:
-            crawler = PublicChannelCrawler(session)
-            try:
-                for ch in channels:
-                    stats = await crawler.crawl_channel(
-                        ch, max_posts=per_page, download_media=download_media
-                    )
-                    if extract_after and stats.get("page_id"):
-                        pipe = ExtractionPipeline(session, ai=ai)
-                        stats["extract"] = await pipe.run_for_page(int(stats["page_id"]))
-                        await session.commit()
-                    out.append(stats)
-            finally:
-                await crawler.aclose()
-    finally:
-        if ai is not None:
-            await ai.aclose()
-    typer.echo(json.dumps(out, ensure_ascii=False, indent=2))
+    async with factory() as session:
+        ingest_res = await ingest_ig_raw_items(
+            session,
+            raw_items,
+            download_media=download_media,
+            build_holdout=build_holdout,
+        )
+    summary = {
+        "raw_json": str(out),
+        "crawl": {k: v for k, v in crawl_res.items() if k != "items"},
+        "ingest": ingest_res,
+    }
+    typer.echo(json.dumps(summary, ensure_ascii=False, indent=2))
+
+
+@app.command("ingest-ig-raw")
+def ingest_ig_raw_cmd(
+    source: Path = typer.Argument(
+        ..., help="فایل JSON خروجی کرالر اینستاگرام (مثل ig-batch2-raw.json)"
+    ),
+    download_media: bool = typer.Option(True, "--media/--no-media", help="دانلود و آرشیو تصاویر"),
+    build_holdout: bool = typer.Option(
+        True, "--build-holdout/--no-build-holdout", help="ساخت برگه‌ی کور بچ ۲ (split=test)"
+    ),
+    target: int = typer.Option(30, "--target", "-n", help="تعداد نمونه برای بچ ۲"),
+    max_per_seller: int = typer.Option(6, "--max-per-seller", help="سقف سهم هر فروشگاه"),
+) -> None:
+    """ورود فایل JSON اینستاگرام (از مرورگر یا اسکریپت سبک) به دیتابیس و ساخت برگه‌ی بچ ۲."""
+    asyncio.run(
+        _ingest_ig_raw(
+            source,
+            download_media=download_media,
+            build_holdout=build_holdout,
+            target=target,
+            max_per_seller=max_per_seller,
+        )
+    )
+
+
+async def _ingest_ig_raw(
+    source: Path,
+    *,
+    download_media: bool,
+    build_holdout: bool,
+    target: int,
+    max_per_seller: int,
+) -> None:
+    from peyja.db import ensure_schema, get_session_factory
+    from peyja.ingest.ig_lite import ingest_ig_raw_items
+
+    raw_items = json.loads(source.read_text(encoding="utf-8"))
+    if not isinstance(raw_items, list):
+        typer.echo("❌ فایل ورودی باید آرایه‌ی JSON باشد")
+        raise typer.Exit(code=1)
+    await ensure_schema()
+    factory = get_session_factory()
+    async with factory() as session:
+        res = await ingest_ig_raw_items(
+            session,
+            raw_items,
+            download_media=download_media,
+            build_holdout=build_holdout,
+            holdout_target=target,
+            max_per_seller=max_per_seller,
+        )
+    typer.echo(json.dumps(res, ensure_ascii=False, indent=2))
 
 
 @app.command()
