@@ -47,12 +47,18 @@ _QUERY_STOP = {
 }
 
 
+def _token_hits(token: str, searchable: str) -> bool:
+    """تطبیق مرزداری‌شده برای توکن جستجو (جلوگیری از تطبیق کاذب «استی» داخل «استیکی»)."""
+    return bool(re.search(rf"(?<![a-z\u0600-\u06ff]){re.escape(token)}", searchable))
+
+
 async def query_catalog(
     session: AsyncSession,
     *,
     q: str = "",
     category: str | None = None,
     confirmed_only: bool = False,
+    include_rejected: bool = True,
     limit: int = 100,
 ) -> list[dict[str, Any]]:
     """دریافت کاتالوگ ساختاریافته همراه با وضعیت تأیید، رتبه‌بندی انطباق و مدارک (Evidence)."""
@@ -61,6 +67,8 @@ async def query_catalog(
         stmt = stmt.where(Product.category == category)
     if confirmed_only:
         stmt = stmt.where(Product.status == "confirmed")
+    elif not include_rejected:
+        stmt = stmt.where(Product.status != "rejected")
     stmt = stmt.order_by(Product.id.desc())
 
     rows = (await session.execute(stmt)).all()
@@ -86,7 +94,7 @@ async def query_catalog(
         brand_hit = bool(
             q_brand and attrs.get("brand") and fold(str(attrs.get("brand") or "")) == fold(q_brand)
         )
-        tok_hits = sum(1 for tok in q_tokens if tok in searchable)
+        tok_hits = sum(1 for tok in q_tokens if _token_hits(tok, searchable))
         if q_tokens and not brand_hit and tok_hits == 0:
             continue
         match_score = (2 if brand_hit else 0) + tok_hits
@@ -252,12 +260,10 @@ async def review_catalog_product(
 
 async def answer_product_query(session: AsyncSession, query_text: str) -> dict[str, Any]:
     """تولید پیش‌نویس پاسخ DM با اتکا به کاتالوگ و قانون صفر (بدون ادعای قیمت تأییدنشده)."""
-    matches = await query_catalog(session, q=query_text, limit=5)
+    matches = await query_catalog(session, q=query_text, include_rejected=False, limit=5)
     if not matches:
         return {"matched": False, "items": [], "reply_text": None}
 
-    # اولویت با محصولات تأییدشده‌ی دارای قیمت
-    matches.sort(key=lambda x: (not x["verified"], x["price_toman"] is None, -x["confidence"]))
     top = matches[0]
     name = top["title_fa"] or top["product_name"] or "محصول"
     if top["verified"] and top["price_toman"]:

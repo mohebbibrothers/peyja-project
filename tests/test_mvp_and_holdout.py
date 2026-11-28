@@ -283,6 +283,12 @@ def test_seller_review_echo_learning_and_relevance(tmp_path: Path, monkeypatch: 
                                 "caption": "کرم آبرسان نیتروژنا ۹۵۰ هزار تومان"
                             },  # جدیدتر ولی غیرمرتبط
                         ),
+                        RawItem(
+                            page_id=page.id,
+                            kind="media",
+                            ig_id="p3",
+                            raw={"caption": "قرعه کشی رژگونه استیکی ۵۵۰ هزار تومان"},
+                        ),
                     ]
                 )
                 await session.flush()
@@ -322,6 +328,10 @@ def test_seller_review_echo_learning_and_relevance(tmp_path: Path, monkeypatch: 
         assert ask["items"][0]["id"] == learned["product_id"]
         assert ask["items"][0]["verified"] is True
 
+        # مرزبندی توکن: «استی» هرگز نباید به «استیکی» بخورد
+        no_false = client.get("/api/catalog/ask", params={"q": "فارم استی دارین؟"}).json()
+        assert no_false["matched"] is False
+
         # تأیید/تغییر قیمت از طریق کنسول فروشنده (POST /api/catalog/{id}/review)
         pid = learned["product_id"]
         rev = client.post(
@@ -331,6 +341,12 @@ def test_seller_review_echo_learning_and_relevance(tmp_path: Path, monkeypatch: 
         assert rev.status_code == 200
         assert rev.json()["item"]["price_toman"] == 540_000
         assert rev.json()["item"]["verified"] is True
+
+        # محصول ردشده دیگر در پاسخ DM ظاهر نمی‌شود
+        rej = client.post(f"/api/catalog/{pid}/review", json={"action": "reject"})
+        assert rej.status_code == 200 and rej.json()["item"]["status"] == "rejected"
+        ask_after_rej = client.get("/api/catalog/ask", params={"q": "قیمت ریمل اسنس چنده؟"}).json()
+        assert ask_after_rej["matched"] is False
 
         missing = client.post("/api/catalog/999999/review", json={"action": "reject"})
         assert missing.status_code == 404
