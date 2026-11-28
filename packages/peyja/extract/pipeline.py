@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from peyja.config import get_settings
 from peyja.extract.caption import analyze_caption
 from peyja.extract.catalog import (
+    canonical_brand,
     find_brand,
     find_product_category,
     find_product_name,
@@ -45,25 +46,35 @@ VLM_SYSTEM_PROMPT = (
     "## نقش (Role)\n"
     "تو «استخراج‌گرِ داده‌ی متخصصِ بازارِ لوازم آرایشی‌بهداشتی ایران» هستی؛ "
     "سال‌ها کپشنِ فروشندگانِ اینستاگرام را خوانده‌ای و با قیمت‌گذاریِ تومانی، شیدها، "
-    "واژگانِ بومی («توافقی»، «دایرکت»، «۵۵۰💸») و دام‌های متنی آشنایی کامل داری.\n\n"
+    "هشتگ‌های فروشگاهی، واژگانِ بومی («توافقی»، «دایرکت»، «۵۵۰💸») و دام‌های متنی آشنایی کامل داری.\n\n"
     "## پروتکلِ استخراج (گام‌به‌گام — دقیقاً به همین ترتیب اجرا کن)\n"
-    "۱. **پستِ بی‌محصول؟** اگر کپشن صرفاً شوخی، چالش، جمله‌ی انگیزشی/حمایتی یا معرفیِ کلیِ پیج است "
-    "و هیچ محصول یا دسته‌ی مشخصی برای فروش معرفی نمی‌کند، «هرگز» از هشتگ‌ها حدس نزن — "
-    "extraction_successful=false و failure_reason کوتاه بگذار.\n"
+    "۱. **اصلِ دسته‌یابی در اینستاگرام:** در ریلز و پست‌های فروشگاه‌های آرایشی، گاهی فقط یک جمله‌ی کوتاه، "
+    "قرعه‌کشی، مقایسه‌ی اصل/فیک، یا هشتگ آمده و قیمت/مدل در ویدیوست. با وجود این:\n"
+    "   - تا وقتی پست به محصول، برند، ویژگی یا دسته‌ی غالبی از محصولات آرایشی/پوستی/مراقبتی مربوط است "
+    "(در متن یا هشتگ‌ها مثل `#محصولات_پوستی`، `#میکاپ`، `#سایه_چشم`، `#اسپری_داو`، `#پک_آرایشی`)، "
+    "**حتماً** `extraction_successful=true` و `category`ِ غالب را استخراج کن.\n"
+    "   - **فقط و فقط** وقتی `category: null` (یا `extraction_successful=false`) بگذار که پست:\n"
+    "     (الف) صرفاً طنز/چالشِ خالصِ بی‌ربط به محصول باشد («پیازای خیانت‌کار...»، «😌😂 #فان #چالش»)، یا\n"
+    "     (ب) صرفاً درخواست لایک/کامنت حمایتی باشد («فقط یه ❤️ بزار واسم تا دیده بشم #حمایت»)، یا\n"
+    "     (ج) معرفیِ کلیِ کل پیجِ مختلط بدون هیچ دسته‌ی غالب یا با تساوی دسته‌ها باشد («این فقط بخشی از محصولات پیجمه، آرایشی و پوستی اصل...»).\n"
     "۲. **قیمت فعلی:** فقط عددی که واقعاً قیمت است. «حجم/وزن/ساعت/تعداد/SPF/شماره» هرگز قیمت نیستند.\n"
     "۳. **قیمت قبل از تخفیف (old):** فقط با نشانه‌ی صریحِ «از X به Y»، «قیمت قبل» یا خط‌خوردگی.\n"
     "۴. **دسته:** دقیقاً یکی از ۷ دسته‌ی مجاز:\n"
-    "   - `skincare`: مراقبت پوست (ضدآفتاب، سرم، آبرسان، تونر، دورچشم، فیس‌واش، اسکراب)\n"
-    "   - `makeup`: آرایشی (ریمل، رژلب، لیپ‌گلاس، کرم‌پودر، BB/CC کرم، سایه، کانسیلر، کانتور، پک آرایشی)\n"
-    "   - `deo_fragrance`: دئو و خوشبوکننده‌ی بدن (بادی اسپلش، اسپری بدن، مام، دئودورانت، ضدتعریق، لوسیون بدن)\n"
+    "   - `skincare`: مراقبت پوست (ضدآفتاب، سرم، آبرسان، تونر، دورچشم، فیس‌واش، اسکراب، روتین پوستی، ضدلک/ضدجوش)\n"
+    "   - `makeup`: آرایشی (ریمل، رژلب، بالم لب/لیپ بالم، لیپ‌گلاس، کرم‌پودر، BB/CC کرم، سایه، رژگونه، کانسیلر، کانتور، پک/باکس آرایشی)\n"
+    "   - `deo_fragrance`: دئو و خوشبوکننده‌ی بدن (بادی اسپلش، اسپری بدن/داو، مام، دئودورانت، ضدتعریق، لوسیون بدن)\n"
     "   - `perfume`: عطر و ادکلن (عطر، ادکلن، ادوپرفیوم)\n"
     "   - `haircare`: مراقبت مو (شامپو سر، نرم‌کننده، ماسک/روغن/سرم مو، پوست سر)\n"
     "   - `hygiene`: بهداشتیِ غیردئو (شامپو بدن، ضدعفونی، دستمال، پد بهداشتی)\n"
-    "   - `other`: فقط وقتی محصولِ مشخصی هست که در ۶ دسته‌ی بالا جا نمی‌گیرد.\n"
-    "۵. **نامِ محصول و مشخصات:** `product_name` (عبارتِ کاتالوگی مثل «کرم ضد آفتاب» یا «بادی اسپلش»)، "
-    "`brand`، `colors`، `shades` (شماره‌ی شید مثل «شماره ۱۲» — نه رنگ نه سایز)، `sizes`، `volume_ml`، `spf`.\n"
-    "۶. **وضعیت موجودی:** `in_stock` (موجود/قیمت‌دار) | `out_of_stock` (ناموجود/تمام) | "
-    "`on_request` (استعلام قیمت در دایرکت یا کامنت: «قیمت دایرکت»، «کلمه X کامنت کن») | `unknown`.\n"
+    "   - `other`: فقط محصول مشخصی بیرون از ۶ دسته‌ی بالا.\n"
+    "۵. **نامِ محصول، برند و مشخصات:**\n"
+    '   - `brand` را جداگانه پر کن و با نامِ محصول نچسبان («اسپری داو» ⇒ `product_name="اسپری بدن"`, `brand="داو"`).\n'
+    "   - عبارتِ کامل و کاتالوگیِ محصول را حفظ کن («رژلب مات»، «مام قارچی»، «شامپو بدون سولفات»، «سرم ضد ریزش»).\n"
+    '   - از هشتگ‌ها هم برند، نامِ محصول و رنگ را استخراج کن (`#نامبوزین`, `#اسپری_داو`, `#دورچشم`, `#اسنسصورتی` ⇒ `colors=["صورتی"]`).\n'
+    "   - رنگ/تناژ (`colors` مثل «صورتی»، «نود» حتی در «میکاپ صورتی»)، شماره‌ی شید (`shades` مثل «شماره ۱۲» — نه رنگ نه سایز)، "
+    'سایز/حجم (`sizes` و اگر `volume_ml` عددی داشت مثل ۵۰ میل، `"50"` را در `sizes` هم بیاور)، `spf`.\n'
+    "۶. **وضعیت موجودی:** `in_stock` (موجود/قیمت‌دار/«همه محصولات موجود») | `out_of_stock` (ناموجود/تمام) | "
+    "`on_request` (استعلام قیمت در دایرکت/کامنت: «قیمت دایرکت»، «کلمه X کامنت کن») | `unknown`.\n"
     "۷. **چندمحصوله:** اگر پست چند محصول دارد، «همه» را در آرایه‌ی `products` بیاور "
     "(هرکدام با `name_fa`, `category`, `brand` و مشخصاتِ خودش) و در سطحِ بالا هم دسته‌ی غالب (`category`)، "
     "`brand` و `product_name`ِ نخستین/غالب‌ترین محصول را پر کن؛ تک‌محصوله = `products` خالی.\n\n"
@@ -78,12 +89,12 @@ VLM_SYSTEM_PROMPT = (
     "- «شماره ۱۲» یا «لیپ گلاس ۴۴ کیکو» ⇒ شید است (shades)، نه قیمت و نه سایز.\n"
     "- «پالت ۱۲ رنگ» ⇒ تعدادِ رنگ است، نه شید و نه قیمت.\n"
     "- «قیمت مناسب/خوب» بدونِ عدد ⇒ قیمت وجود ندارد (حدس نزن!).\n"
-    "- «بادی اسپلش» و «اسپری بدن/داو» = `deo_fragrance` است (نه perfume و نه hygiene!).\n\n"
+    "- «بادی اسپلش» و «اسپری بدن/داو» = `deo_fragrance`؛ «بالم لب/لیپ بالم» = `makeup`.\n\n"
     "## نمونه‌ها (Few-shot)\n"
-    "ورودی: «ریمل اسنس موجود شد ۵۵۰💸»\n"
+    "ورودی: «ریمل اسنس موجود شد ۵۵۰💸 #اسنسصورتی»\n"
     'خروجی: {"extraction_successful": true, "title_fa": "ریمل اسنس", "product_name": "ریمل", '
     '"category": "makeup", "brand": "اسنس", "price_toman": 550000, '
-    '"old_price_toman": null, "colors": [], "shades": [], "sizes": [], '
+    '"old_price_toman": null, "colors": ["صورتی"], "shades": [], "sizes": [], '
     '"volume_ml": null, "spf": null, "stock_state": "in_stock", "products": [], "confidence": 0.9}\n'
     "ورودی: «کرم ضد آفتاب سان‌سل SPF50 حجم ۵۰ میل | قیمت ۴/۸۰»\n"
     'خروجی: {"extraction_successful": true, "title_fa": "کرم ضد آفتاب سان‌سل", "product_name": "کرم ضد آفتاب", '
@@ -92,15 +103,20 @@ VLM_SYSTEM_PROMPT = (
     '"volume_ml": 50, "spf": 50, "stock_state": "in_stock", "products": [], "confidence": 0.9}\n'
     "ورودی: «رژلب مات شماره ۱۲ | قیمت توافقی»\n"
     'خروجی: {"extraction_successful": true, "title_fa": "رژلب مات", '
-    '"product_name": "رژلب", '
+    '"product_name": "رژلب مات", '
     '"category": "makeup", "brand": null, "price_toman": null, '
     '"old_price_toman": null, "colors": [], "shades": ["12"], "sizes": [], '
     '"volume_ml": null, "spf": null, "stock_state": "on_request", "products": [], "confidence": 0.85}\n'
-    "ورودی: «بادی اسپلش بث اند بادی خوشبو و موندگار»\n"
+    "ورودی: «بادی اسپلش بث اند بادی | سفارش از دایرکت #اسپری_داو»\n"
     'خروجی: {"extraction_successful": true, "title_fa": "بادی اسپلش بث اند بادی", "product_name": "بادی اسپلش", '
     '"category": "deo_fragrance", "brand": "بث اند بادی", "price_toman": null, '
     '"old_price_toman": null, "colors": [], "shades": [], "sizes": [], '
     '"volume_ml": null, "spf": null, "stock_state": "unknown", "products": [], "confidence": 0.85}\n'
+    "ورودی: «روتین پوستیت چیه؟! محصولات موجود✅ #محصولات_پوستی #مراقبت_پوست»\n"
+    'خروجی: {"extraction_successful": true, "title_fa": "روتین پوستی", "product_name": null, '
+    '"category": "skincare", "brand": null, "price_toman": null, '
+    '"old_price_toman": null, "colors": [], "shades": [], "sizes": [], '
+    '"volume_ml": null, "spf": null, "stock_state": "in_stock", "products": [], "confidence": 0.75}\n'
     "ورودی: «سه محصول: ۱.دور چشم نامبوزین ۲.اسنس نامبوزین ۳.ابرسان فارم استی | برای قیمت کلمه پوست کامنت کن»\n"
     'خروجی: {"extraction_successful": true, "title_fa": "سه محصول نجات‌بخش", "product_name": "دور چشم", '
     '"category": "skincare", "brand": "نامبوزین", '
@@ -109,13 +125,13 @@ VLM_SYSTEM_PROMPT = (
     '{"name_fa": "ابرسان", "category": "skincare", "brand": "فارم استی"}], '
     '"price_toman": null, "stock_state": "on_request", "confidence": 0.85}\n'
     "ورودی: «پیازای خیانت‌کار همیشه باید بد بو بمونن 😂🧅 #ترند #آرایش»\n"
-    'خروجی: {"extraction_successful": false, "failure_reason": "پست سرگرمی/چالش بدون محصول مشخص", '
+    'خروجی: {"extraction_successful": false, "failure_reason": "پست طنز/چالش بدون محصول یا دسته‌ی فروش", '
     '"category": null, "product_name": null, "brand": null, "price_toman": null, '
     '"colors": [], "shades": [], "sizes": [], "products": [], "confidence": 0.0}\n\n'
     "## قراردادِ خروجی (Output Contract)\n"
     "- فقط و فقط یک شیءِ JSON مطابق اسکیمای داده‌شده؛ بدون هیچ متن، حاشیه، `<think>` یا حصارِ کد.\n"
     "- قیمت‌ها = عددِ صحیحِ تومانِ کامل (مثلا 4800000)؛ لیست‌ها خالی ولی هرگز null.\n"
-    "- اگر اطلاعات کافی نیست یا پست محصولی ندارد extraction_successful=false با دلیلِ کوتاه؛ «حدسِ مطمئن‌نشده» ممنوع.\n"
+    "- «حدسِ قیمت» ممنوع؛ اگر فقط قیمت نامشخص است ولی دسته یا محصول هست، `price_toman=null` و `extraction_successful=true`.\n"
     "- پیش از پاسخ، خروجی‌ات را بی‌صدا با «دام‌ها» بالا بسنج (Self-check) و سپس فقط JSON نهایی را بده."
 )
 
@@ -270,10 +286,16 @@ class ExtractionPipeline:
             or _guess_category(caption_text + " " + " ".join(signals.hashtags))
             or find_product_category(caption_text)
         )
-        brand = (vlm.brand if vlm and vlm.brand else None) or find_brand(caption_text)
-        colors = (vlm.colors if vlm and vlm.colors else None) or signals.colors
-        shades = (vlm.shades if vlm and vlm.shades else None) or signals.shades
-        sizes = (vlm.sizes if vlm and vlm.sizes else None) or signals.sizes
+        brand = canonical_brand(vlm.brand if vlm else None) or find_brand(caption_text)
+        colors = list(dict.fromkeys([*(vlm.colors if vlm else []), *signals.colors]))
+        shades = list(dict.fromkeys([*(vlm.shades if vlm else []), *signals.shades]))
+        sizes = list(dict.fromkeys([*(vlm.sizes if vlm else []), *signals.sizes]))
+        if vlm and vlm.volume_ml is not None:
+            v_str = (
+                str(int(vlm.volume_ml)) if float(vlm.volume_ml).is_integer() else str(vlm.volume_ml)
+            )
+            if v_str not in sizes:
+                sizes.append(v_str)
         stock_state = (
             "on_request"
             if signals.prices.on_request
@@ -478,7 +500,7 @@ class ExtractionPipeline:
         assert self.ai is not None
         schema = SafeProductExtraction.model_json_schema()
         user_prompt = (
-            f"اسکیمای JSON:\n{json.dumps(schema, ensure_ascii=False)}\n\n"
+            f"اسکیمای JSON:\n{json.dumps(schema, ensure_ascii=False, separators=(',', ':'))}\n\n"
             f"کپشن:\n{caption_text or '(بدون کپشن)'}"
         )
         messages: list[dict[str, Any]] = [

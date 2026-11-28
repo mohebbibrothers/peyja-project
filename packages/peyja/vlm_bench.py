@@ -25,6 +25,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from peyja.extract.catalog import canonical_brand, find_brand, find_product_name
 from peyja.extract.pipeline import (
     VLM_RETRY_PROMPT,
     VLM_SYSTEM_PROMPT,
@@ -33,7 +34,9 @@ from peyja.extract.pipeline import (
 )
 from peyja.extract.schema import SafeProductExtraction
 
-_SCHEMA_JSON = json.dumps(SafeProductExtraction.model_json_schema(), ensure_ascii=False)
+_SCHEMA_JSON = json.dumps(
+    SafeProductExtraction.model_json_schema(), ensure_ascii=False, separators=(",", ":")
+)
 _FAILED_SENTINEL_CAT = "__VLM_FAILED__"
 _FAILED_SENTINEL_PRICE = -1
 
@@ -82,8 +85,15 @@ def _to_pred(sample_id: str, r: SafeProductExtraction) -> dict[str, Any]:
     derived_brand = r.brand
     if derived_brand is None and r.products:
         derived_brand = next((p.brand for p in r.products if p.brand), None)
+    derived_brand = canonical_brand(derived_brand) or derived_brand
     first_prod_name = next((p.name_fa for p in r.products if p.name_fa), None)
     derived_name = r.product_name or (first_prod_name if r.products else None) or r.title_fa
+
+    sizes = list(r.sizes)
+    if r.volume_ml is not None:
+        v_str = str(int(r.volume_ml)) if float(r.volume_ml).is_integer() else str(r.volume_ml)
+        if v_str not in sizes:
+            sizes.append(v_str)
 
     return {
         "id": sample_id,
@@ -94,7 +104,7 @@ def _to_pred(sample_id: str, r: SafeProductExtraction) -> dict[str, Any]:
         "brand": derived_brand,
         "colors": r.colors,
         "shades": r.shades,
-        "sizes": r.sizes,
+        "sizes": sizes,
         "stock_state": r.stock_state,
         "confidence": r.confidence,
         "method": "vlm",
@@ -102,7 +112,7 @@ def _to_pred(sample_id: str, r: SafeProductExtraction) -> dict[str, Any]:
         "products": [
             {
                 "product_name": p.name_fa,
-                "brand": p.brand,
+                "brand": canonical_brand(p.brand) or p.brand,
                 "category": p.category,
                 "price_toman": p.price_toman,
                 "colors": p.colors,
@@ -208,6 +218,68 @@ def _compute_offline_preds(samples: list[dict[str, Any]]) -> dict[str, dict[str,
     return preds
 
 
+def _compute_hybrid_preds(
+    samples: list[dict[str, Any]],
+    vlm_preds: dict[str, dict[str, Any]],
+    offline_preds: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    """ترکیبِ تولیدیِ Regex قطعی + VLM معنایی (مشابه `process_raw_item`).
+
+    - شکستِ فنیِ VLM → برگشت کامل به آفلاین (فاصله‌ی ایمنی).
+    - امتناعِ آگاهانه‌ی VLM: اگر هیچ برند یا نام‌محصولِ صریحی در کاتالوگ نباشد،
+      امتناعِ VLM معتبر است (حذفِ منفی‌های کاذب مثل کپشن طنز/حمایتی)؛
+      در غیر این صورت (محصولِ صریح وجود دارد) آفلاین جایگزین می‌شود.
+    - موفقیتِ VLM: قیمتِ پرتوانِ regex در اولویت + دسته/چندمحصوله‌ی VLM + اجتماعِ ویژگی‌ها.
+    """
+    hybrid: dict[str, dict[str, Any]] = {}
+    for s in samples:
+        sid = str(s["id"])
+        cap = s.get("caption") or ""
+        vp = vlm_preds.get(sid, {})
+        op = offline_preds.get(sid, {})
+
+        if vp.get("category") == _FAILED_SENTINEL_CAT or vp.get("failed"):
+            hybrid[sid] = op
+            continue
+
+        if vp.get("abstained"):
+            if find_brand(cap) or find_product_name(cap):
+                hybrid[sid] = op
+            else:
+                hybrid[sid] = vp
+            continue
+
+        o_price = op.get("price_toman")
+        o_conf = float(op.get("confidence") or 0.0)
+        price = o_price if (o_price and o_conf >= 0.8) else (vp.get("price_toman") or o_price)
+        stock = (
+            op.get("stock_state")
+            if op.get("stock_state") == "on_request"
+            else (
+                "in_stock"
+                if price
+                else (vp.get("stock_state") or op.get("stock_state") or "unknown")
+            )
+        )
+        hybrid[sid] = {
+            "id": sid,
+            "price_toman": price,
+            "old_price_toman": op.get("old_price_toman") or vp.get("old_price_toman"),
+            "category": vp.get("category") or op.get("category"),
+            "product_name": vp.get("product_name") or op.get("product_name"),
+            "brand": vp.get("brand") or op.get("brand"),
+            "colors": list(dict.fromkeys([*(vp.get("colors") or []), *(op.get("colors") or [])])),
+            "shades": list(dict.fromkeys([*(vp.get("shades") or []), *(op.get("shades") or [])])),
+            "sizes": list(dict.fromkeys([*(vp.get("sizes") or []), *(op.get("sizes") or [])])),
+            "stock_state": stock,
+            "confidence": max(float(vp.get("confidence") or 0.0), o_conf),
+            "method": "hybrid",
+            "abstained": False,
+            "products": vp.get("products") or op.get("products") or [],
+        }
+    return hybrid
+
+
 def _percentile(values: list[float], p: float) -> float | None:
     if not values:
         return None
@@ -244,21 +316,6 @@ def _head_to_head(
         o_ok = _cat_ok(s, op) and price_within_tolerance(
             s.get("price_toman"), op.get("price_toman")
         )
-        if v_ok == o_ok:
-            if not v_ok:
-                both_wrong.append(
-                    {
-                        "id": sid,
-                        "gold_cat": s.get("categories") or s.get("category"),
-                        "gold_price": s.get("price_toman"),
-                        "offline_cat": op.get("category"),
-                        "offline_price": op.get("price_toman"),
-                        "vlm_cat": vp.get("category"),
-                        "vlm_price": vp.get("price_toman"),
-                        "caption": (s.get("caption") or "").replace("\n", " ")[:90],
-                    }
-                )
-            continue
         row = {
             "id": sid,
             "gold_cat": s.get("categories") or s.get("category"),
@@ -267,8 +324,13 @@ def _head_to_head(
             "offline_price": op.get("price_toman"),
             "vlm_cat": vp.get("category"),
             "vlm_price": vp.get("price_toman"),
+            "abstained": bool(vp.get("abstained")),
             "caption": (s.get("caption") or "").replace("\n", " ")[:90],
         }
+        if v_ok == o_ok:
+            if not v_ok:
+                both_wrong.append(row)
+            continue
         if v_ok:
             vlm_wins.append(row)
         else:
@@ -379,6 +441,8 @@ async def run_vlm_benchmark(
 
     offline_preds = _compute_offline_preds(todo)
     offline_score = score(todo, offline_preds) if todo else {}
+    hybrid_preds = _compute_hybrid_preds(todo, eval_preds, offline_preds)
+    hybrid_score = score(todo, hybrid_preds) if todo else {}
 
     latencies = [float(e["latency_ms"]) for e in todo_entries if e.get("latency_ms") is not None]
     prompt_toks = sum(int(e.get("prompt_tokens") or 0) for e in todo_entries)
@@ -408,7 +472,7 @@ async def run_vlm_benchmark(
         "telemetry": telemetry,
         "vlm_score": full_score,
         "vlm_valid_only_score": valid_score,
-        "comparison": {"offline": offline_score},
+        "comparison": {"offline": offline_score, "hybrid": hybrid_score},
         "head_to_head": {
             "vlm_wins": len(diffs["vlm_wins"]),
             "offline_wins": len(diffs["offline_wins"]),
@@ -428,7 +492,9 @@ def _write_report_md(
     rp: Path,
 ) -> None:
     v = report.get("vlm_score") or {}
-    o = (report.get("comparison") or {}).get("offline") or {}
+    comp = report.get("comparison") or {}
+    o = comp.get("offline") or {}
+    h = comp.get("hybrid") or {}
     t = report.get("telemetry") or {}
     health = report.get("health") or {}
     models = ", ".join(health.get("models") or []) or "—"
@@ -449,8 +515,8 @@ def _write_report_md(
         )
     lines += [
         "",
-        "| معیار | موتورِ آفلاین (regex) | مغزِ VLM |",
-        "|---|---|---|",
+        "| معیار | موتورِ آفلاین (regex) | مغزِ VLM خالص | پایپ‌لاین ترکیبی (Regex + VLM) |",
+        "|---|---|---|---|",
     ]
     for key, label in [
         ("price_within_2pct", "قیمت (±۲٪)"),
@@ -463,18 +529,20 @@ def _write_report_md(
     ]:
         ov = o.get(key)
         vv = v.get(key)
+        hv = h.get(key)
         fmt = lambda x: "—" if x is None else f"{x:.0%}"  # noqa: E731
-        lines.append(f"| {label} | {fmt(ov)} | {fmt(vv)} |")
+        lines.append(f"| {label} | {fmt(ov)} | {fmt(vv)} | {fmt(hv)} |")
 
     if v.get("test_only"):
         vt = v["test_only"]
         ot = o.get("test_only") or {}
+        ht = h.get("test_only") or {}
         lines += [
             "",
             "## نمره‌ی رسمی (Holdout / `split=test` — قانون ۵)",
-            f"- قیمت: آفلاین={ot.get('price_within_2pct', 0):.0%} · VLM={vt.get('price_within_2pct', 0):.0%}",
-            f"- دسته: آفلاین={ot.get('category_accuracy', 0):.0%} · VLM={vt.get('category_accuracy', 0):.0%}",
-            f"- ویژگی: آفلاین={ot.get('attribute_accuracy', 0):.0%} · VLM={vt.get('attribute_accuracy', 0):.0%}",
+            f"- قیمت: آفلاین={ot.get('price_within_2pct', 0):.0%} · VLM={vt.get('price_within_2pct', 0):.0%} · ترکیبی={ht.get('price_within_2pct', 0):.0%}",
+            f"- دسته: آفلاین={ot.get('category_accuracy', 0):.0%} · VLM={vt.get('category_accuracy', 0):.0%} · ترکیبی={ht.get('category_accuracy', 0):.0%}",
+            f"- ویژگی: آفلاین={ot.get('attribute_accuracy', 0):.0%} · VLM={vt.get('attribute_accuracy', 0):.0%} · ترکیبی={ht.get('attribute_accuracy', 0):.0%}",
         ]
 
     lines += ["", "## مقایسه‌ی نقطه‌به‌نقطه (منتقدِ بی‌رحم)"]
@@ -488,16 +556,17 @@ def _write_report_md(
         if not rows:
             lines.append("- موردی نبود")
         else:
-            for r in rows[:25]:
+            for r in rows:
+                tag = " [امتناع]" if r.get("abstained") else ""
                 lines.append(
-                    f"- `{r['id']}` · طلا={r['gold_cat']}/{r['gold_price']} · "
+                    f"- `{r['id']}`{tag} · طلا={r['gold_cat']}/{r['gold_price']} · "
                     f"آفلاین={r['offline_cat']}/{r['offline_price']} · "
                     f"VLM={r['vlm_cat']}/{r['vlm_price']} · «{r['caption']}»"
                 )
 
     if failed_entries:
         lines += ["", f"## شکست‌های فنی / پارس ({len(failed_entries)})"]
-        for fe in failed_entries[:25]:
+        for fe in failed_entries:
             lines.append(f"- `{fe.get('id')}`: {fe.get('error')}")
 
     lines += [

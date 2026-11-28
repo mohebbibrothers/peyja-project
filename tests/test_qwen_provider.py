@@ -575,3 +575,72 @@ def test_cli_doctor_vlm_and_vlm_gold_e2e_without_dotenv(tmp_path: Path) -> None:
         assert (tmp_path / "vlm-report.md").exists()
         assert len(srv.requests) == 2
         assert srv.requests[0]["payload"]["chat_template_kwargs"] == {"enable_thinking": False}
+
+
+def test_vlm_bench_volume_ml_hybrid_fusion_and_brand_alias(tmp_path: Path) -> None:
+    """آزمون _to_pred (volume_ml→sizes + Sheglam→شیگلم) و ترکیبِ ترکیبیِ Regex+VLM."""
+    from peyja.extract.schema import SafeProductExtraction
+    from peyja.vlm_bench import _to_pred, run_vlm_benchmark
+
+    pred = _to_pred(
+        "s1",
+        SafeProductExtraction(
+            extraction_successful=True,
+            title_fa="پرایمر شاین شیگلم",
+            product_name="پرایمر",
+            brand="Sheglam",
+            category="skincare",
+            volume_ml=50,
+            sizes=[],
+        ),
+    )
+    assert pred["brand"] == "شیگلم"
+    assert pred["sizes"] == ["50"]
+
+    class _FakeAi:
+        def __init__(self, replies: list[Any]) -> None:
+            self.replies = list(replies)
+
+        async def health(self) -> dict[str, Any]:
+            return {"ok": True, "models": ["qwen3.6-35b-a3b"]}
+
+        async def chat_detailed(self, *args: Any, **kwargs: Any) -> Any:
+            from peyja.provider.llm import ChatResult
+
+            nxt = self.replies.pop(0)
+            if isinstance(nxt, Exception):
+                raise nxt
+            return ChatResult(content=nxt, prompt_tokens=100, completion_tokens=50)
+
+    samples = [
+        # امتناعِ درست VLM روی کپشنِ حمایتیِ بی‌محصول (هیبرید باید به امتناع اعتماد کند)
+        {
+            "id": "h-abstain-ok",
+            "caption": "فقط یه ❤️ بزار واسم تا دیده بشم #آرایش #زیبایی #مراقبت_پوست",
+            "price_toman": None,
+            "category": None,
+        },
+        # شکستِ فنیِ VLM روی محصولِ دارای قیمت قطعی (هیبرید باید به آفلاین برگردد)
+        {
+            "id": "h-crash-fallback",
+            "caption": "ریمل اسنس اصل ۵۵۰💸 #اسنسصورتی",
+            "price_toman": 550_000,
+            "category": "makeup",
+            "colors": ["صورتی"],
+        },
+    ]
+    abstain_json = json.dumps(
+        {"extraction_successful": False, "failure_reason": "درخواست حمایت", "products": []},
+        ensure_ascii=False,
+    )
+    rep = asyncio.run(
+        run_vlm_benchmark(
+            samples, tmp_path / "out.json", _FakeAi([abstain_json, LlmError("timeout")])
+        )
+    )
+    hyb = rep["comparison"]["hybrid"]
+    assert hyb["category_accuracy"] == 1.0
+    assert hyb["price_within_2pct"] == 1.0
+    assert hyb["attribute_accuracy"] == 1.0
+    md = (tmp_path / "vlm-report.md").read_text(encoding="utf-8")
+    assert "ترکیبی (Regex + VLM)" in md

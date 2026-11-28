@@ -112,3 +112,14 @@ def test_verification_sheet_renders_rows() -> None:
     assert "480000" in sheet
     assert "☐" in sheet
     assert "/" in sheet  # میله‌ی جدول escape شده
+
+
+def test_product_match_folds_alef_madda_and_brand_aliases() -> None:
+    """نرمال‌سازی آ→ا و هم‌ارزی برندهای لاتین/فارسی در نمره‌دهی (خطاهای gold-025 و gold-043)."""
+    from peyja.evals import _product_match
+    from peyja.extract.catalog import canonical_brand
+
+    assert canonical_brand("Sheglam") == "شیگلم"
+    assert canonical_brand("kiko milano") == "کیکو میلانو"
+    assert _product_match({"name": None, "brand": "شیگلم"}, {"brand": "Sheglam"})
+    assert _product_match({"name": "آبرسان", "brand": None}, {"product_name": "ابرسان"})

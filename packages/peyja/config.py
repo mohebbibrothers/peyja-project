@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     qwen_api_key: str = ""  # سرورِ داخلی معمولاً بدون کلید
     qwen_timeout: float = 120.0
     qwen_max_retries: int = 3
-    qwen_max_tokens: int = 4096  # سقف کافی تا مدلِ تفکرمحور وسطِ <think> قطع نشود
+    qwen_max_tokens: int = 8192  # سقف کافی تا حتی پستِ ۶محصوله با تفکر قطع نشود
     qwen_json_mode: bool = False  # response_format=json_object اگر سرور پشتیبانی کند
     qwen_enable_thinking: bool | None = None  # False برای سرعت بیشتر (اگر سرور vLLM/SGLang باشد)
     qwen_context_length: int = 131072

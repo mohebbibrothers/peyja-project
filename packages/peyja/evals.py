@@ -136,25 +136,25 @@ def _score_subset(items: list[dict[str, Any]], preds: dict[str, dict[str, Any]])
 
 
 def _tokens(text: str | None) -> set[str]:
-    """توکن‌های نرمال‌شده برای مقایسه‌ی نام‌ها (بدون حرفِ ربط)."""
+    """توکن‌های نرمال‌شده برای مقایسه‌ی نام‌ها (بدون حرفِ ربط و با نرمال‌سازی آ/ي/ك)."""
+    from peyja.extract.catalog import fold
+
     stop = {"و", "با", "یا", "در", "برای", "از"}
-    return {
-        w
-        for w in (text or "").replace("\u200c", " ").replace("_", " ").split()
-        if w and w not in stop
-    }
+    return {w for w in fold(text or "").split() if w and w not in stop}
 
 
 def _product_match(g: dict[str, Any], p: dict[str, Any]) -> bool:
-    """محصولِ طلایی «پیدا شد» اگر: برند یکی/دربرگیرنده باشد یا نام‌ها هم‌پوشانی داشته باشند."""
+    """محصولِ طلایی «پیدا شد» اگر: برند یکی/هم‌ارز/دربرگیرنده باشد یا نام‌ها هم‌پوشانی داشته باشند."""
+    from peyja.extract.catalog import canonical_brand, fold
 
     def _comp(s: Any) -> str:
-        return "".join(str(s or "").replace("\u200c", " ").split()).casefold()
+        return "".join(fold(str(s or "")).split()).casefold()
 
     raw_name = g.get("name")
     g_names: list[Any] = list(raw_name) if isinstance(raw_name, list) else [raw_name]
     if g.get("brand") and p.get("brand"):
-        gb, pb = _comp(g["brand"]), _comp(p["brand"])
+        gb = _comp(canonical_brand(str(g["brand"])) or g["brand"])
+        pb = _comp(canonical_brand(str(p["brand"])) or p["brand"])
         if gb and pb and (gb == pb or gb in pb or pb in gb):
             return True
     pn_raw = p.get("product_name") or p.get("name_fa") or ""

@@ -680,7 +680,7 @@ def vlm_gold(
         "--no-think",
         help="خاموش‌کردنِ <think> در سرورهای vLLM/SGLang (پاسخِ سریع‌تر)",
     ),
-    max_tokens: int = typer.Option(4096, "--max-tokens", help="سقف توکنِ هر پاسخ"),
+    max_tokens: int = typer.Option(8192, "--max-tokens", help="سقف توکنِ هر پاسخ"),
     timeout: float = typer.Option(120.0, "--timeout", help="حداکثر زمانِ انتظار (ثانیه)"),
 ) -> None:
     """بنچ‌مارکِ مغزِ هوشمند (Qwen محلی) روی gold + مقایسه با موتورِ آفلاین (قانون ۵)."""
@@ -782,10 +782,12 @@ async def _vlm_gold(
             indent=2,
         )
     )
-    comp = (report.get("comparison") or {}).get("offline")
+    comps = report.get("comparison") or {}
+    comp = comps.get("offline")
+    hyb = comps.get("hybrid")
     if comp:
         typer.echo()
-        typer.echo("— مقایسه با موتورِ آفلاین (regex) —")
+        typer.echo("— مقایسه: موتورِ آفلاین (regex) vs مغزِ VLM vs پایپ‌لاین ترکیبی —")
         for key in (
             "price_within_2pct",
             "category_accuracy",
@@ -795,9 +797,11 @@ async def _vlm_gold(
             "name_accuracy",
             "brand_accuracy",
         ):
-            ov, vv = comp.get(key), (report.get("vlm_score") or {}).get(key)
+            ov = comp.get(key)
+            vv = (report.get("vlm_score") or {}).get(key)
+            hv = (hyb or {}).get(key)
             f = lambda x: "—" if x is None else f"{x:.0%}"  # noqa: E731
-            typer.echo(f"  {key}: آفلاین={f(ov)} · VLM={f(vv)}")
+            typer.echo(f"  {key}: آفلاین={f(ov)} · VLM={f(vv)} · ترکیبی={f(hv)}")
     h2h = report.get("head_to_head") or {}
     typer.echo(
         f"\n⚔️ رو‌در‌رو: بردِ VLM={h2h.get('vlm_wins', 0)} · "

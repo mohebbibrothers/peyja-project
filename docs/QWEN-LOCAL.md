@@ -42,7 +42,7 @@ apps (CLI/worker/loop) ──► get_ai_provider()  ──► QwenLocalProvider 
 | `QWEN_API_KEY` | خالی | Bearer در صورت نیاز |
 | `QWEN_TIMEOUT` | `120` | ثانیه |
 | `QWEN_MAX_RETRIES` | `3` | تعدادِ retry |
-| `QWEN_MAX_TOKENS` | `4096` | سقف توکن تا مدل وسطِ `<think>` قطع نشود |
+| `QWEN_MAX_TOKENS` | `8192` | سقف توکن تا مدل روی چندمحصوله‌های شلوغ وسطِ `<think>` قطع نشود |
 | `QWEN_JSON_MODE` | `false` | `response_format=json_object` (اگر سرور پشتیبانی کند) |
 | `QWEN_ENABLE_THINKING` | خالی | `false` برای غیرفعال‌کردن تفکر در سرورهای vLLM/SGLang |
 
@@ -68,7 +68,7 @@ git clone https://github.com/mohebbibrothers/peyja-project.git ~/peyja-project 2
 cd ~/peyja-project && git pull -q && \
 python3 -m venv .venv && . .venv/bin/activate && pip install -q -e ".[dev]" && \
 python3 -m peyja doctor --vlm && \
-python3 -m peyja vlm-gold --fresh
+python3 -m peyja vlm-gold --fresh --no-think -j 2
 ```
 
 ### ویندوز (PowerShell)
@@ -78,8 +78,12 @@ if (!(Test-Path "$HOME\peyja-project")) { git clone https://github.com/mohebbibr
 cd "$HOME\peyja-project"; git pull -q
 python -m venv .venv; .\.venv\Scripts\Activate.ps1; pip install -q -e ".[dev]"
 python -m peyja doctor --vlm
-python -m peyja vlm-gold --fresh
+python -m peyja vlm-gold --fresh --no-think -j 2
 ```
+
+> نکته‌ی میدانی از بنچ‌مارک ۶۴تایی زنده روی `10.1.231.22`:
+> - بدون `--no-think`، ۶۳/۶۳ فراخوانی وارد `<think>` شد (~۱٬۸۰۰ توکن تفکر در هر نمونه، `total_s=1912s`، `p50=13.3s` و شکست `gold-009` در سقف `4096`). با `--no-think -j 2` و سقف پیش‌فرض `8192` زمان اجرا چند برابر کمتر و پایدارتر می‌شود.
+> - گزارش خروجی (`out/vlm-report.md`) هر سه ستون **آفلاین (Regex)**، **VLM خالص** و **پایپ‌لاین ترکیبی (Regex + VLM)** را هم‌زمان نشان می‌دهد.
 
 خروجی:
 - `out/vlm-predictions.json` — پیش‌بینیِ مغز + زمان و توکن هر نمونه (کشِ ازسرگیری‌پذیر؛

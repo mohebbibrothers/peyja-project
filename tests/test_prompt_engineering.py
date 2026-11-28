@@ -68,3 +68,12 @@ def test_prompt_addresses_multi_product_and_names() -> None:
     assert "products" in VLM_SYSTEM_PROMPT
     assert "چندمحصوله" in VLM_SYSTEM_PROMPT
     assert "product_name" in VLM_SYSTEM_PROMPT
+
+
+def test_prompt_v2_covers_lip_balm_colors_and_strict_abstention() -> None:
+    """اصلاحات مبتنی بر بنچ‌مارک ۶۴تایی: رفع امتناع کاذب، بالم لب، اسپری داو، حجم و رنگ در هشتگ."""
+    assert "بالم لب" in VLM_SYSTEM_PROMPT
+    assert "اسپری داو" in VLM_SYSTEM_PROMPT
+    assert "volume_ml" in VLM_SYSTEM_PROMPT
+    assert "اسنسصورتی" in VLM_SYSTEM_PROMPT
+    assert "فقط و فقط" in VLM_SYSTEM_PROMPT and "طنز" in VLM_SYSTEM_PROMPT

@@ -71,6 +71,54 @@ BRANDS: list[str] = [
     "lilyeve",
 ]
 
+# نگاشت هم‌ارزِ دوخطی (لاتین/املایی → نام فارسیِ کاتالوگ) — هم برای یکتاسازی کاتالوگ، هم ارزیابی
+BRAND_ALIASES: dict[str, str] = {
+    "sheglam": "شیگلم",
+    "kiko": "کیکو میلانو",
+    "kiko milano": "کیکو میلانو",
+    "lilyeve": "لیلی‌یو",
+    "لیلیو": "لیلی‌یو",
+    "isdin": "ایزیدین",
+    "farmasi": "فارماسی",
+    "numbuzin": "نامبوزین",
+    "centella": "سنتلا",
+    "anua": "آنوا",
+    "farmstay": "فارم استی",
+    "farm stay": "فارم استی",
+    "axis-y": "اکسیس وای",
+    "axis y": "اکسیس وای",
+    "dr althea": "دکتر التیا",
+    "dr. althea": "دکتر التیا",
+    "clinique": "کلینیک",
+    "vaseline": "وازلین",
+    "dove": "داو",
+    "essence": "اسنس",
+    "nivea": "نیوآ",
+    "garnier": "گارنیه",
+    "loreal": "لورال",
+    "l'oreal": "لورال",
+    "maybelline": "میبلین",
+    "golden rose": "گلدن رز",
+    "bath & body works": "بث اند بادی",
+    "bath and body": "بث اند بادی",
+    "victoria's secret": "ویکتوریا سیکرت",
+    "mac": "مک",
+    "nars": "نارس",
+    "fenty beauty": "فنتی بیوتی",
+}
+
+
+def canonical_brand(brand: str | None) -> str | None:
+    """یکتاسازی نام برند (مثل Sheglam → شیگلم، Lilyeve → لیلی‌یو)."""
+    if not brand:
+        return None
+    cleaned = brand.strip()
+    if not cleaned:
+        return None
+    key = fold(cleaned).strip()
+    return BRAND_ALIASES.get(key, cleaned)
+
+
 # ── نام‌های محصول (برای نام/کاتالوگ و تکه‌بندیِ پست‌های چندمحصوله) ───────────────
 PRODUCT_TERMS: list[str] = [
     "کرم ضد افتاب",
