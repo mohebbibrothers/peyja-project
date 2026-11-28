@@ -31,7 +31,7 @@ from peyja.extract.catalog import (
     find_product_name,
     split_product_spans,
 )
-from peyja.extract.price_parser import PriceCandidate
+from peyja.extract.price_parser import PriceCandidate, parse_price_fa
 from peyja.extract.schema import SafeProductExtraction, route_by_confidence
 from peyja.models import (
     CaptionVersion,
@@ -174,6 +174,9 @@ CATEGORY_MAP: dict[str, str] = {
     # skincare
     "ضد آفتاب": "skincare",
     "ضدآفتاب": "skincare",
+    "اسپری ضد آفتاب": "skincare",
+    "اسپری ضدآفتاب": "skincare",
+    "اسپری لایه بردار": "skincare",
     "کرم": "skincare",
     "سرم": "skincare",
     "تونر": "skincare",
@@ -181,6 +184,7 @@ CATEGORY_MAP: dict[str, str] = {
     "مرطوب": "skincare",
     "آبرسان": "skincare",
     "فیس واش": "skincare",
+    "فوم شستشو": "skincare",
     "شستشوی صورت": "skincare",
     "ژل شستشو": "skincare",  # در نیچ آرایشی‌بهداشتی = شوینده‌ی صورت
     "ضد چروک": "skincare",
@@ -192,6 +196,10 @@ CATEGORY_MAP: dict[str, str] = {
     # makeup
     "رژلب": "makeup",
     "رژ لب": "makeup",
+    "رژگونه": "makeup",
+    "رژ گونه": "makeup",
+    "مداد لب": "makeup",
+    "تینت": "makeup",
     "فوندیشن": "makeup",
     "کرم پودر": "makeup",
     "ریمل": "makeup",
@@ -204,6 +212,7 @@ CATEGORY_MAP: dict[str, str] = {
     "لاک": "makeup",
     "برنزه": "makeup",
     "پرایمر": "makeup",
+    "پودر فیکس": "makeup",
     "بالم لب": "makeup",
     "لیپ گلاس": "makeup",
     "لیپگلاس": "makeup",
@@ -498,6 +507,13 @@ class ExtractionPipeline:
                 # قانون صفر: کالای بدون قیمت تأییدشده هرگز خودکار «confirmed» نمی‌شود
                 route_conf = min(route_conf, 0.65)
                 if (
+                    spec["category"] is None
+                    and spec["brand"] is None
+                    and find_product_name(spec["name"] or "") is None
+                ):
+                    # اطلاعیه‌ی سایت/پیج بدون هیچ محصول، برند یا دسته (مثل «با پشتیبانی تماس بگیرید»)
+                    route_conf = 0.0
+                elif (
                     route_conf < self.settings.extract_review_floor
                     and spec["category"]
                     and (spec["brand"] or find_product_name(spec["name"] or ""))
@@ -606,8 +622,40 @@ class ExtractionPipeline:
             for s in spans
             if re.sub(r"#\S+", "", s).strip() and (find_product_name(s) or find_brand(s))
         ]
+        priced_spans = sum(1 for s in kept if parse_price_fa(s).current is not None)
         if len(kept) >= 2:
-            pool = kept
+            if priced_spans >= 2:
+                pool = kept
+            else:
+                brands = {find_brand(s) for s in kept if find_brand(s)}
+                names = {find_product_name(s) for s in kept if find_product_name(s)}
+                has_numbered = (
+                    sum(
+                        1
+                        for s in kept
+                        if re.match(r"^\s*(?:[۰-۹0-9]+[.)\-]|(?:محصول|مورد)\s*[۰-۹0-9]+)", s)
+                    )
+                    >= 2
+                )
+                has_long_prose = any(len(re.sub(r"#\S+", "", s).strip()) > 110 for s in kept)
+                single_priced_caption = (
+                    priced_spans == 1
+                    and not has_numbered
+                    and not ExtractionPipeline.is_multi_caption(caption_text)
+                )
+                if (
+                    (len(names) <= 1 and len(brands) <= 1)
+                    or single_priced_caption
+                    or (
+                        has_long_prose
+                        and not has_numbered
+                        and not ExtractionPipeline.is_multi_caption(caption_text)
+                    )
+                ):
+                    # تکرار یک نام واحد یا تک‌قیمت در بندهای توضیحی ← یک محصول واحد با قیمت اصلی
+                    pool = [caption_text or kept[0]]
+                else:
+                    pool = kept
         elif len(kept) == 1:
             pool = [caption_text or kept[0]]
         else:
@@ -743,7 +791,7 @@ def count_category_signals(text: str) -> tuple[Counter[str], int]:
             start, end = m.span()
             if any(occupied[start:end]):
                 continue
-            if len(ft) <= 3:
+            if len(ft) <= 4:
                 before = folded[start - 1] if start > 0 else " "
                 after = folded[end:] if end < len(folded) else ""
                 if _LETTER_RE.match(before):
@@ -754,6 +802,11 @@ def count_category_signals(text: str) -> tuple[Counter[str], int]:
                     and not (after[0] == "ه" and (len(after) == 1 or after[1] in "ای "))
                     and not (
                         after[0] == "ی" and (len(after) == 1 or not _LETTER_RE.match(after[1]))
+                    )
+                    and not (
+                        len(ft) == 4
+                        and after[0] in "متش"
+                        and (len(after) == 1 or not _LETTER_RE.match(after[1]))
                     )
                 ):
                     continue
@@ -958,11 +1011,11 @@ _FOLD_TABLE = str.maketrans(
 
 
 def _key_hits(folded: str, key: str) -> int:
-    """شمارشِ کلید در متن تاشده؛ برای کلیدهای کوتاه (≤۳ حرف) مرزِ واژه الزامی است.
+    """شمارشِ کلید در متن تاشده؛ برای واژه‌های کوتاه (≤۴ حرف) مرزِ واژه الزامی است.
 
-    «مداومه» حاوی «داو» نیست؛ «علاقه» حاوی «لاک» نیست؛ «کرمهای» حاوی «کرم» هست.
+    «مداومه» حاوی «داو» نیست؛ «روتینت» حاوی «تینت» نیست؛ «کرمهای» حاوی «کرم» هست.
     """
-    if len(key) > 3:
+    if len(key) > 4:
         return folded.count(key)
     n = 0
     for m in re.finditer(re.escape(key), folded):
@@ -975,6 +1028,11 @@ def _key_hits(folded: str, key: str) -> int:
             and _LETTER_RE.match(after)
             and not (after[0] == "ه" and (len(after) == 1 or after[1] in "ای "))
             and not (after[0] == "ی" and (len(after) == 1 or not _LETTER_RE.match(after[1])))
+            and not (
+                len(key) == 4
+                and after[0] in "متش"
+                and (len(after) == 1 or not _LETTER_RE.match(after[1]))
+            )
         ):
             continue
         n += 1

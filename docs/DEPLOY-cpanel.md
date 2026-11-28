@@ -157,12 +157,15 @@ cPanel هنگام «Create a New Domain» (حالت Registered Domain) بررس�
 
 1. **ورودی CLI:** `python -m peyja --help` باید کار کند (`packages/peyja/__main__.py` — قبلاً نبود و
    «No module named peyja.__main__» می‌داد). تست رگرسیون: `tests/test_cli_entry.py`.
-2. **WEBHOOK_SECRET** در `.env` باید مو‌به‌مو مقدار «نمایش Webhook Secret» پنل BoxAPI باشد؛
-   توکن ارسال (`BOXAPI_API_KEY`) هم باید «توکن دسترسی» پنل باشد (X-Api-Key).
-3. **`AUTO_REPLY_TEXT`** در `.env` باید مقدار داشته باشد — **خالی = موتور پاسخ خودکار خاموش**
-   (`build_auto_reply` برمی‌گرداند None). بعد از هر تغییر `.env` → **Restart** اجباری.
-4. **selftest با شکل واقعی:** `bash /home/kavehncp/peyja/scripts/peyja.sh selftest-webhook --url https://<دامنه>/webhooks/boxapi`
+۲. **`BOXAPI_WEBHOOK_SECRET`** (یا `WEBHOOK_SECRET`) در `.env` باید مو‌به‌مو مقدار «نمایش Webhook Secret» پنل BoxAPI باشد؛
+   توکن ارسال (`BOXAPI_API_KEY`) هم باید «توکن دسترسی» پنل باشد (X-Api-Key)، و `APP_URL` و `BOXAPI_DOMAIN` باید به آدرس واقعی cPanel شما (نه آدرس قبلی `ngrok-free.dev`) اشاره کنند.
+۳. **`AUTO_REPLY_TEXT` و `CATALOG_AUTO_REPLY`** در `.env` باید تنظیم شوند — **خالی/False = فقط پیش‌نویس در لاگ (بدون ارسال واقعی)**:
+   - `CATALOG_AUTO_REPLY=true` برای پاسخ مدرک‌محور از کاتالوگ (در DM و `private_reply` روی کامنت)
+   - `AUTO_REPLY_TEXT="سلام 🌸 پیام شما ثبت شد؛ برای قیمت و سفارش همینجا راهنمایی‌تان می‌کنیم."` برای پیام‌های عمومی
+   بعد از هر تغییر `.env` → در cPanel حتماً **Restart** بزنید.
+۴. **selftest با شکل واقعی:** `bash /home/kavehncp/peyja/scripts/peyja.sh selftest-webhook --url https://<دامنه>/webhooks/boxapi`
    باید HTTP 200 + event + message + window بدهد (payload آن حالا انولوپ واقعی `data.messaging[]` است).
+۵. **کرال خودکار بی‌هزینه (اختیاری روی سرور cPanel):** `bash /home/kavehncp/peyja/scripts/peyja.sh crawl-public milnohub Shadibeautyskincare Garnimarket --per-page 22 --media`
 
 نکته‌ی عملیاتی: بعد از selftest ممکن است در لاگ «ارسال پاسخ خودکار ناموفق» ببینید — برای گیرنده‌ی
 مصنوعیِ selftest طبیعی و بی‌اهمیت است؛ مهم HTTP 200 و ثبت event/message است.

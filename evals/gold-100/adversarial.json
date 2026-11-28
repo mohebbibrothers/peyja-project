@@ -188,5 +188,25 @@
     "id": "adv-038",
     "caption": "دستمال مرطوب و پد بهداشتی روزانه",
     "expected": {"category": "hygiene"}
+  },
+  {
+    "id": "adv-039",
+    "caption": "رژگونه کرمی، مداد لب، تینت و پودر فیکس با تخفیف ویژه ۲/۵۳۰ ← ۱/۸۹۸ تومان",
+    "expected": {"category": "makeup", "price_toman": 1898000, "old_price_toman": 2530000}
+  },
+  {
+    "id": "adv-040",
+    "caption": "فوم شستشو و اسپری ضدآفتاب و اسپری ضد آفتاب و اسپری لایه بردار حجم ۱۰۰ میل",
+    "expected": {"category": "skincare", "price_toman": null}
+  },
+  {
+    "id": "adv-041",
+    "caption": "رژ گونه هلویی حجم ۴.۱ گرم | قیمت ۲۹۷ تومان | تماس ۰۹۱۲۳۴۵۶۷۸۹ | واتساپ +971503413732",
+    "expected": {"category": "makeup", "price_toman": 297000}
+  },
+  {
+    "id": "adv-042",
+    "caption": "ادکلن مردانه سال 2025 | کد تخفیف : ۲۰۲۴۱۲۰۱",
+    "expected": {"category": "perfume", "price_toman": null}
   }
 ]

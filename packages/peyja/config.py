@@ -5,6 +5,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -30,7 +31,10 @@ class Settings(BaseSettings):
     boxapi_ai_base_url: str = "https://ai.boxapi.ir"
 
     # ── وب‌هوک ─────────────────────────────────────────────────────────────────
-    boxapi_webhook_secret: str = ""  # ممکن است با whsec_ شروع شود
+    boxapi_webhook_secret: str = Field(
+        default="",
+        validation_alias=AliasChoices("BOXAPI_WEBHOOK_SECRET", "WEBHOOK_SECRET"),
+    )  # ممکن است با whsec_ شروع شود
     # پنجره‌ی replay به ثانیه. اگر ساعت سرور میزبان منحرف است (doctor هشدار می‌دهد)
     # این مقدار را بزرگ‌تر کنید؛ هزینه‌اش: بازپخش رویدادهای قدیمی در همان بازه ممکن می‌شود.
     webhook_tolerance_seconds: int = 300

@@ -20,6 +20,82 @@ from dataclasses import dataclass, field
 _FA_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹٠١٢٣٤٥٦٧٨٩", "01234567890123456789")
 
 _UNIT_WORDS = r"(?:تومان|تومن|توم|ت\b|tmn|toman|IRT|IRR)"
+_SPEC_UNIT_AFTER_RE = re.compile(
+    r"^\s*(?:mil|ml|gr|g|cc|kg|گرم|میل|میلی|لیتر|تایی|عددی|درصد|%|ساعته|ساعت|روزه|تومنی)\b",
+    re.IGNORECASE,
+)
+_CONTACT_OR_CODE_BEFORE_RE = re.compile(
+    r"(?:واتس\s*اپ|واتساپ|تماس|تلفن|موبایل|همراه|پشتیبانی|شماره\s*تماس|کد\s*تخفیف|کد\s*سفارش|کد\s*محصول|کد)(?:\s*[:=])?\s*$",
+    re.IGNORECASE,
+)
+_NON_PRICE_PREFIX_RE = re.compile(
+    r"(?:حجم|وزن|سایز|شماره|تعداد|ساعت|spf|مدل|رنگ|سال|قسط|هر\s*قسط|حدود)\s*$",
+    re.IGNORECASE,
+)
+
+
+def _is_non_price_span(
+    t: str, start: int, end: int, raw: str, *, has_unit: bool, num_val: int | None = None
+) -> bool:
+    """تشخیص اعداد غیرقیمتی: تلفن/واتساپ، کد تخفیف، سال، حجم/وزن (۴.۱ گرم / ۱۰۰ میل)، قسط، شماره رنگ."""
+    before_1 = t[start - 1] if start > 0 else " "
+    before_32 = t[max(0, start - 32) : start]
+    after = t[end : min(len(t), end + 24)]
+
+    # شماره‌های تماس و واتساپ (+971..., 09..., 021...)
+    if before_1 == "+" or (raw.startswith(("09", "021")) and len(raw) >= 8):
+        return True
+    digits_only = re.sub(r"\D", "", raw)
+    if not has_unit and len(digits_only) >= 10 and not digits_only.endswith("000"):
+        return True
+    if _CONTACT_OR_CODE_BEFORE_RE.search(before_32) and not has_unit:
+        return True
+
+    # قسط («۴ قسط ۴۲۰ تومنی») یا صفتِ قسط («تومنی»)
+    if re.search(r"قسط[^0-9]{0,12}$", before_32) or re.match(r"^\s*تومنی\b", after):
+        return True
+
+    # واحدِ مشخصه‌ی غیرقیمتی بعد از عدد («۴.۱ گرم»، «۱۰۰ میل»، «۲۴ ساعته»)
+    if not has_unit and _SPEC_UNIT_AFTER_RE.match(after):
+        return True
+
+    # پیشوند مشخصه‌ی محصول («حجم ۴.۱»، «مدل ۱۴۷»، «رنگ 212»، «سال 2025»)
+    before_18 = t[max(0, start - 18) : start]
+    if _NON_PRICE_PREFIX_RE.search(before_18) and not has_unit:
+        return True
+
+    # سال‌های رایج میلادی/شمسی بدون واحد قیمتی («سال 2025»، «2026»)
+    if (
+        not has_unit
+        and num_val is not None
+        and (1390 <= num_val <= 1415 or 2020 <= num_val <= 2035)
+    ):
+        return True
+
+    # شماره‌های مدل داخل پرانتز یا بین نام محصول و برند («کرم ۳۴۵ دکتر التیا»، «دفاعی ۱۴۷ دکتر التیا»)
+    if not has_unit and (
+        (
+            re.search(r"\([^)]*$", before_32)
+            and re.search(r"^[^)]*\)", after)
+            and not re.search(r"قیمت|تخفیف|تومان|تومن", before_32)
+        )
+        or (
+            num_val is not None
+            and num_val < 1000
+            and re.search(r"(?:کرم|سرم|مدل|دفاعی|ترمیم|شماره)\s*$", before_18)
+            and re.match(r"^\s+(?:دکتر|و\b|[A-Za-z])", after)
+        )
+    ):
+        return True
+
+    # کد مدل لاتین مثل «147 Barrier Cream» یا «212 Rose Creme»
+    if not has_unit and re.match(r"^\s+[A-Za-z]{2,}", after):
+        m_w = re.match(r"^\s+([A-Za-z]+)", after)
+        if m_w and m_w.group(1).lower() not in {"tmn", "toman", "irt", "irr"}:
+            return True
+
+    return False
+
 
 PRICE_ON_REQUEST_PATTERNS = [
     re.compile(p)
@@ -92,10 +168,11 @@ def _million_pattern() -> re.Pattern:
     """«۴/۸۰» «4/800» «۴.۸ میلیون» «۴ میلیون و ۸۰۰» — فرم‌های میلیونی.
 
     قاعده‌ی کسر: «X/YY» = X.YY میلیون (کسر ۲رقمی = صدم میلیون)؛ «X/YYY» = X میلیون و YYY هزار.
+    نکته: «میل» در بازار آرایشی‌بهداشتی واحد حجم (میلی‌لیتر) است، نه میلیون!
     """
     return re.compile(
         r"(?<![\d/.,])(?P<int>\d{1,3})\s*(?:/|\.)\s*(?P<frac>\d{1,3})"
-        r"(?:\s*(?P<unit>میلیون|میل|mln))?"
+        r"(?:\s*(?P<unit>میلیون|mln))?"
         r"(?:\s*(?:و|&)\s*(?P<extra_thousand>\d{1,3})\s*(?:هزار|هـ))?"
     )
 
@@ -114,9 +191,11 @@ def _plain_with_unit_pattern() -> re.Pattern:
 def _bare_pattern() -> re.Pattern:
     """«۴۸۰» بدون واحد — در بازار ایران = هزار تومان (فوق‌العاده مهم).
 
-    نگهبانِ پسوند واحد («250mil») مانعِ خواندنِ حجم/وزن به‌جای قیمت می‌شود.
+    نگهبانِ پسوند واحد («250mil»، «100 میل»، «4.1 گرم») مانعِ خواندنِ حجم/وزن به‌جای قیمت می‌شود.
     """
-    return re.compile(r"(?<![\d/.,])(?P<num>\d{3,12})(?![\d/.,%]|(?:mil|ml|cc|kg|گرم|میل)\b)")
+    return re.compile(
+        r"(?<![\d/.,])(?P<num>\d{3,12})(?![\d/.,%]|\s*(?:mil|ml|gr|g|cc|kg|گرم|میل|میلی|لیتر|تایی|عددی|درصد|ساعته|ساعت|روزه)\b)"
+    )
 
 
 def parse_price_fa(text: str) -> PriceParseResult:
@@ -140,11 +219,14 @@ def parse_price_fa(text: str) -> PriceParseResult:
             candidates.append(PriceCandidate(None, m_por.group(0), "on_request", 0.9))
             break
 
-    # --- قیمت خط‌خورده (فرم صریح): «تخفیف از ۹۰۰ به ۸۵۰» — اولی قدیم، دومی جدید ---
+    # --- قیمت خط‌خورده (فرم صریح): «تخفیف از ۹۰۰ به ۸۵۰» یا «۲/۵۳۰ ← ۱/۸۹۸» — اولی قدیم، دومی جدید ---
     discount_spans: list[tuple[int, int]] = []
     m_pair = re.search(
         r"(?:تخفیف|حراج|sale|off)[^0-9۰-۹]{0,8}(?:از)?\s*"
         r"(?P<old>\d[\d,/.\s]{0,12}\d|\d)\s*(?:به|تا|←|->)\s*(?P<new>\d[\d,/.\s]{0,12}\d|\d)",
+        t,
+    ) or re.search(
+        r"(?P<old>\d[\d,/.]{0,12}\d)\s*(?:←|⬅️?|->)\s*(?P<new>\d[\d,/.]{0,12}\d)",
         t,
     )
     explicit_discount = False
@@ -197,7 +279,7 @@ def parse_price_fa(text: str) -> PriceParseResult:
 
     # الگو ۴: «۴ میلیون و ۸۰۰» (بدون ممیز)
     for m in re.finditer(
-        r"(?P<int>\d{1,3})\s*(?:میلیون|میل)\s*(?:و|&)\s*(?P<thou>\d{1,3})\s*(?:هزار|هـ)?",
+        r"(?P<int>\d{1,3})\s*میلیون\s*(?:و|&)\s*(?P<thou>\d{1,3})\s*(?:هزار|هـ)?",
         t,
     ):
         if _overlaps(m, discount_spans):
@@ -213,6 +295,9 @@ def parse_price_fa(text: str) -> PriceParseResult:
         int_part = _to_int(m.group("int"))
         unit = m.group("unit")
         extra = m.group("extra_thousand")
+
+        if _is_non_price_span(t, m.start(), m.end(), m.group(0), has_unit=bool(unit)):
+            continue
 
         if unit or "/" in m.group(0) or "." in m.group(0):
             # کسر، کسرِ میلیون است: ۲ رقم = صدم (۴/۸۰ = ۴.۸M)؛ ۱ رقم = دهم (۴/۸ = ۴.۸M)؛ ۳ رقم = هزارتایی (۴/۸۰۰ = ۴٬۸۰۰٬۰۰۰)
@@ -233,6 +318,8 @@ def parse_price_fa(text: str) -> PriceParseResult:
     # الگوی ساده با واحد: «۴۸۰ هزار تومان» «۲٬۵۰۰٬۰۰۰ تومان» «۴ میلیون تومان»
     for m in _plain_with_unit_pattern().finditer(t):
         if _overlaps(m, discount_spans):
+            continue
+        if _is_non_price_span(t, m.start(), m.end(), m.group(0), has_unit=True):
             continue
         num = _to_int(m.group("num"))
         unit = m.group("unit")
@@ -260,11 +347,9 @@ def parse_price_fa(text: str) -> PriceParseResult:
         raw = m.group("num")
         if any(raw in c for c in covered):
             continue
-        # حجم/وزن/سایز/شماره/تعداد/ساعت = مشخصه‌ی محصول است، نه قیمت («حجم ۴۰۰»)
-        before = t[max(0, m.start() - 12) : m.start()]
-        if re.search(r"(حجم|وزن|سایز|شماره|تعداد|ساعت|spf)\s*$", before, re.IGNORECASE):
-            continue
         num = _to_int(raw)
+        if _is_non_price_span(t, m.start(), m.end(), raw, has_unit=False, num_val=num):
+            continue
         if num < 100:  # سایز/تعداد/شماره — قیمت نیست
             continue
         if num >= 10_000_000:  # عدد ۸رقمی: همان تومان است

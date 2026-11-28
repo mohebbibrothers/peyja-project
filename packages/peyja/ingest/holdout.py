@@ -66,6 +66,7 @@ def build_holdout_from_raw(
                 "username": uname,
                 "ig_media_id": str(it.get("pk") or it.get("id") or it.get("ig_media_id") or ""),
                 "caption": cap,
+                "image_path": str(it.get("image_path") or "") or None,
                 "has_price_hint": bool(_PRICE_HINT_RE.search(cap)),
                 "tag": str(it.get("_tag") or it.get("tag") or "imported"),
             }
@@ -84,30 +85,31 @@ def build_holdout_from_raw(
             continue
         seen_captions.add(cap)
         seller_counts[uname] += 1
-        selected.append(
-            {
-                "id": f"gold-{next_idx:03d}",
-                "source_username": uname,
-                "ig_media_id": row["ig_media_id"],
-                "split": "test",
-                "caption": cap,
-                # قانون ۵ (§۲.۴): برچسب‌زنی کور — هیچ خروجی موتوری نوشته نمی‌شود
-                "price_toman": None,
-                "old_price_toman": None,
-                "category": None,
-                "brand": None,
-                "colors": [],
-                "shades": [],
-                "sizes": [],
-                "volume_ml": None,
-                "spf": None,
-                "stock_state": "unknown",
-                "product_name": None,
-                "products": [],
-                "multi_product": False,
-                "notes": f"بچ ۲ (#{row['tag']}) — در انتظار برچسب‌زنی کور",
-            }
-        )
+        entry: dict[str, Any] = {
+            "id": f"gold-{next_idx:03d}",
+            "source_username": uname,
+            "ig_media_id": row["ig_media_id"],
+            "split": "test",
+            "caption": cap,
+            # قانون ۵ (§۲.۴): برچسب‌زنی کور — هیچ خروجی موتوری نوشته نمی‌شود
+            "price_toman": None,
+            "old_price_toman": None,
+            "category": None,
+            "brand": None,
+            "colors": [],
+            "shades": [],
+            "sizes": [],
+            "volume_ml": None,
+            "spf": None,
+            "stock_state": "unknown",
+            "product_name": None,
+            "products": [],
+            "multi_product": False,
+            "notes": f"بچ ۲ (#{row['tag']}) — در انتظار برچسب‌زنی کور",
+        }
+        if row.get("image_path"):
+            entry["image_path"] = row["image_path"]
+        selected.append(entry)
         next_idx += 1
 
     out_candidates_path.parent.mkdir(parents=True, exist_ok=True)

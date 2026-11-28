@@ -42,6 +42,70 @@ async def _crawl(username: str, max_media: int) -> None:
     await provider.aclose()
 
 
+@app.command("crawl-public")
+def crawl_public(
+    channels: list[str] = typer.Argument(..., help="نام کانال‌های عمومی فروشگاه‌ها (بدون @)"),
+    per_page: int = typer.Option(20, "--per-page", "-n", help="حداکثر پست از هر کانال"),
+    download_media: bool = typer.Option(
+        True, "--media/--no-media", help="دانلود تصاویر واقعی محصول در data/media"
+    ),
+    extract_after: bool = typer.Option(
+        False, "--extract/--no-extract", help="استخراج فوری کاتالوگ پس از کرال"
+    ),
+    offline: bool = typer.Option(
+        True, "--offline/--vlm", help="حالت استخراج بعد از کرال (قطعی آفلاین یا VLM)"
+    ),
+) -> None:
+    """کرال رایگان پست‌ها و تصاویرِ فروشگاه‌های واقعی از کانال عمومی (بدون مصرف Data API)."""
+    asyncio.run(
+        _crawl_public(
+            channels,
+            per_page=per_page,
+            download_media=download_media,
+            extract_after=extract_after,
+            offline=offline,
+        )
+    )
+
+
+async def _crawl_public(
+    channels: list[str],
+    *,
+    per_page: int,
+    download_media: bool,
+    extract_after: bool,
+    offline: bool,
+) -> None:
+    from peyja.db import ensure_schema, get_session_factory
+    from peyja.extract.pipeline import ExtractionPipeline
+    from peyja.ingest.public_channel import PublicChannelCrawler
+    from peyja.provider.llm import get_ai_provider
+
+    await ensure_schema()
+    factory = get_session_factory()
+    ai = None if (not extract_after or offline) else get_ai_provider()
+    out: list[dict[str, object]] = []
+    try:
+        async with factory() as session:
+            crawler = PublicChannelCrawler(session)
+            try:
+                for ch in channels:
+                    stats = await crawler.crawl_channel(
+                        ch, max_posts=per_page, download_media=download_media
+                    )
+                    if extract_after and stats.get("page_id"):
+                        pipe = ExtractionPipeline(session, ai=ai)
+                        stats["extract"] = await pipe.run_for_page(int(stats["page_id"]))
+                        await session.commit()
+                    out.append(stats)
+            finally:
+                await crawler.aclose()
+    finally:
+        if ai is not None:
+            await ai.aclose()
+    typer.echo(json.dumps(out, ensure_ascii=False, indent=2))
+
+
 @app.command()
 def extract(
     page_id: int,
@@ -326,7 +390,7 @@ async def _doctor(vlm_only: bool = False, base_url: str = "", model: str = "") -
     )
     checks.append(
         (
-            "WEBHOOK_SECRET تنظیم شده",
+            "BOXAPI_WEBHOOK_SECRET تنظیم شده",
             bool(settings.boxapi_webhook_secret),
             (
                 settings.boxapi_webhook_secret[:10] + "..."
@@ -505,7 +569,15 @@ async def _doctor(vlm_only: bool = False, base_url: str = "", model: str = "") -
     for name, ok, detail in checks:
         mark = "✅" if ok else "❌"
         typer.echo(f"{mark} {name:<{width}}  {detail}")
-    if not all(c[1] for c in checks[:3]):
+    # روی هاست اشتراکی cPanel آی‌پی داخلی Qwen (WireGuard) در دسترس نیست و پایپ‌لاین به regex سقوط نرم می‌کند؛
+    # بنابراین سلامتِ عملیاتیِ سرویس با کلیدها، API رسمی و دیتابیس سنجیده می‌شود.
+    required = {
+        "BOXAPI_API_KEY تنظیم شده",
+        "BOXAPI_WEBHOOK_SECRET تنظیم شده",
+        "API رسمی (service/accounts)",
+        "دیتابیس",
+    }
+    if not all(ok for name, ok, _ in checks if name in required):
         raise typer.Exit(code=1)
 
 

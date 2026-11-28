@@ -120,6 +120,38 @@ def test_size_numbers_not_price():
     assert r.current is None or (r.current.value_toman or 0) >= 100_000
 
 
+def test_real_market_non_price_traps_ignored():
+    """شماره تماس/واتساپ، کد تخفیف، سال میلادی، وزن (۴.۱ گرم)، حجم با فاصله (۱۰۰ میل) و قسط قیمت نیستند."""
+    assert parse_price_fa("تماس ۰۹۰۲۲۹۹۶۹۴۴ یا ۰۲۱۴۴۶۵۴۰۸۲ و واتس‌اپ +971503413732").current is None
+    assert parse_price_fa("کد تخفیف : ۲۰۲۴۱۲۰۱").current is None
+    assert parse_price_fa("ادکلن طراحی‌شده در سال 2025 میلادی").current is None
+    assert parse_price_fa("کرم ۱۰۰ میل آبرسان").current is None
+    r_weight = parse_price_fa("رژ لب حجم ۴.۱ گرم ✅قیمت ۲۹۷ تومان")
+    assert r_weight.current is not None and r_weight.current.value_toman == 297_000
+    r_inst = parse_price_fa("تخفیف ۱/۹۹۵\nفقط ۱/۶۸۰ تومن\nبا دیجی‌پی در ۴ قسط ۴۲۰ تومنی")
+    assert r_inst.current is not None and r_inst.current.value_toman == 1_680_000
+    assert r_inst.old is not None and r_inst.old.value_toman == 1_995_000
+    r_arrow = parse_price_fa("۲/۵۳۰ ← ۱/۸۹۸ تومان")
+    assert r_arrow.current is not None and r_arrow.current.value_toman == 1_898_000
+    assert r_arrow.old is not None and r_arrow.old.value_toman == 2_530_000
+    r_ml = parse_price_fa("خط چشم حجم ۳.۵ میل ✅️قیمت ۲۵۰ تومان")
+    assert r_ml.current is not None and r_ml.current.value_toman == 250_000
+    assert parse_price_fa("کرم ۳۴۵ دکتر التیا و مدل ۱۴۷ دکتر التیا").current is None
+
+
+def test_single_product_multi_paragraph_not_exploded():
+    """تکرار نام محصول در بندهای توضیحی تک‌کالا نباید قیمت اصلی را گم کند."""
+    cap = (
+        "سایه چشم دو عددی پاستل مدل Monochrome\n"
+        "✅ قیمت ۲۴۰ تومان\n"
+        "سایه چشم دو عددی پاستل ماندگاری عالی دارد."
+    )
+    multi = ExtractionPipeline.extract_multi_fa(cap)
+    assert len(multi) == 1
+    assert multi[0]["price_toman"] == 240_000
+    assert multi[0]["category"] == "makeup"
+
+
 def test_empty_text():
     r = parse_price_fa("")
     assert r.current is None
